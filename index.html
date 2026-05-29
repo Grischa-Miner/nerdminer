@@ -286,14 +286,17 @@
 
 <script>
 const ADDRESS = 'bc1quygy4j3weetpm9emqmmv50esnxx7m25pgleqgu';
-const API = `https://blitzpool.yourdevice.ch/api/v1/worker/${ADDRESS}`;
+const API = `https://blitzpool.yourdevice.ch:3334/api/client/${ADDRESS}`;
 
 // ── Formatters ──
-function fmtHR(khz) {
-  if (!khz && khz !== 0) return { v: '–', u: '' };
-  if (khz >= 1e6) return { v: (khz/1e6).toFixed(2), u: 'GH/s' };
-  if (khz >= 1e3) return { v: (khz/1e3).toFixed(2), u: 'MH/s' };
-  return { v: khz.toFixed(1), u: 'KH/s' };
+function fmtHR(hs) {
+  if (hs == null || isNaN(hs)) return { v: '–', u: '' };
+  hs = Number(hs);
+  if (hs >= 1e12) return { v: (hs/1e12).toFixed(2), u: 'TH/s' };
+  if (hs >= 1e9)  return { v: (hs/1e9).toFixed(2),  u: 'GH/s' };
+  if (hs >= 1e6)  return { v: (hs/1e6).toFixed(2),  u: 'MH/s' };
+  if (hs >= 1e3)  return { v: (hs/1e3).toFixed(2),  u: 'KH/s' };
+  return { v: hs.toFixed(1), u: 'H/s' };
 }
 function fmtDiff(d) {
   if (!d && d !== 0) return '–';
@@ -328,18 +331,29 @@ function setRefreshLoading(on) {
 
 // ── Render summary ──
 function renderSummary(data) {
-  const w = (data.workers && data.workers[0]) || data;
-  const hr = fmtHR(w.totalHashrate || w.hashrate);
+  const workers = data.workers || [];
+  // Blitzpool liefert totalHashrate (Summe aller Worker, in H/s) direkt mit
+  const totalHs = (data.totalHashrate != null)
+    ? Number(data.totalHashrate)
+    : workers.reduce((sum, w) => sum + Number(w.hashRate || 0), 0);
+  const hr = fmtHR(totalHs);
   document.getElementById('s-hashrate').textContent = hr.v;
   document.getElementById('s-hr-unit').textContent = hr.u;
-  document.getElementById('s-diff').textContent = fmtDiff(w.bestDifficulty || data.bestDifficulty);
+
+  // Beste Schwierigkeit: global, sonst Maximum der Worker
+  let bestDiff = Number(data.bestDifficulty || 0);
+  workers.forEach(w => { const d = Number(w.bestDifficulty || 0); if (d > bestDiff) bestDiff = d; });
+  document.getElementById('s-diff').textContent = fmtDiff(bestDiff);
+
   document.getElementById('s-streak').textContent = data.miningStreak || data.streak || '–';
   if (data.streakSince || data.miningStreakSince) {
     document.getElementById('s-streak-since').textContent = 'seit ' + (data.streakSince || data.miningStreakSince || '').slice(0,10);
   }
   const luck = data.blockLuck || data.luck || '';
   document.getElementById('s-luck').textContent = luck ? '1 in ' + luck : '–';
-  document.getElementById('s-workers').textContent = (w.workerCount || '') + (data.deviceCount ? ' / ' + data.deviceCount + ' Geräte' : '');
+
+  const count = data.workersCount || workers.length || 0;
+  document.getElementById('s-workers').textContent = count + (count === 1 ? ' Worker' : ' Worker');
 }
 
 // ── Render miner cards ──
@@ -349,24 +363,34 @@ function renderMiners(sessions) {
     grid.innerHTML = '<div style="padding:20px; text-align:center; color:var(--text3); font-size:12px;">Keine aktiven Sessions gefunden.</div>';
     return;
   }
-  const maxHR = Math.max(...sessions.map(s => s.hashrate || s.totalHashrate || 0));
+  const maxHR = Math.max(...sessions.map(s => Number(s.hashRate || s.hashrate || s.totalHashrate || 0)));
 
   grid.innerHTML = sessions.map((s, i) => {
-    const id = (s.sessionId || s.id || '????????').toString().slice(0, 8);
-    const hr = s.hashrate || s.totalHashrate || 0;
+    const id = (s.sessionId || s.id || s.name || '????????').toString().slice(0, 8);
+    const hr = Number(s.hashRate || s.hashrate || s.totalHashrate || 0);
     const hrFmt = fmtHR(hr);
-    const diff = s.bestDifficulty || s.difficulty || 0;
-    const uptime = fmtUptime(s.uptimeHours || s.uptime);
+    const diff = Number(s.bestDifficulty || s.difficulty || 0);
+    // Uptime aus startTime berechnen, sonst aus uptimeHours
+    let uptime = '';
+    if (s.startTime) {
+      uptime = fmtUptime((Date.now() - new Date(s.startTime)) / 3600000);
+    } else {
+      uptime = fmtUptime(s.uptimeHours || s.uptime);
+    }
     const lastSeen = timeSince(s.lastSeen || s.updatedAt);
     const pct = maxHR > 0 ? Math.round((hr / maxHR) * 100) : 0;
     const isOnline = !s.offline && (!s.lastSeen || (Date.now() - new Date(s.lastSeen)) < 300000);
     const shares = s.totalShares || s.shares || 0;
     const rejected = s.rejected || 0;
+    // Gerätename aus dem Worker-Namen ableiten
+    const rawName = (s.name || '').toLowerCase();
+    const label = rawName ? rawName.toUpperCase() : 'WORKER';
+    const deviceType = rawName.includes('bitaxe') ? 'BITAXE' : 'NERDMINER';
 
     return `
     <div class="nm-card">
       <div class="nm-card-top">
-        <span class="nm-card-id">⛏ NERD #${String(i+1).padStart(2,'0')}</span>
+        <span class="nm-card-id">⛏ ${label} #${String(i+1).padStart(2,'0')}</span>
         <span class="nm-card-status ${isOnline ? 'online' : 'offline'}">
           <span class="dot"></span>
           <span class="label">${isOnline ? 'ONLINE' : 'OFFLINE'}</span>
@@ -402,7 +426,7 @@ function renderMiners(sessions) {
         </div>
       </div>
       <div class="nm-footer">
-        <span>LILYGO · NERDMINER V2</span>
+        <span>${deviceType}</span>
         <span>BTC SOLO</span>
       </div>
     </div>`;
@@ -437,13 +461,40 @@ async function loadData() {
     document.getElementById('last-update').textContent = 'Zuletzt aktualisiert: ' + new Date().toLocaleTimeString('de-CH') + ' · Auto-Refresh alle 60s';
 
   } catch (err) {
-    console.warn('API error:', err.message, '– using demo data');
-    loadDemo();
-    setStatus('error', 'Demo-Modus (CORS) – auf Handy: Live-Daten');
-    document.getElementById('demo-banner').style.display = 'flex';
+    console.warn('API-Fehler:', err.message);
+    let reason;
+    if (err instanceof TypeError) {
+      // Netzwerk-/CORS-Fehler: Anfrage kam gar nicht durch
+      reason = 'Verbindung blockiert. Möglicherweise erlaubt der Pool keinen direkten Zugriff von aussen (CORS), oder du bist offline.';
+    } else {
+      reason = 'Pool-Server-Antwort: ' + err.message;
+    }
+    showError(reason);
+    setStatus('error', 'Keine Live-Verbindung');
+    document.getElementById('demo-banner').style.display = 'none';
+    document.getElementById('last-update').textContent = 'Letzter Versuch: ' + new Date().toLocaleTimeString('de-CH');
   }
 
   setRefreshLoading(false);
+}
+
+// ── Ehrliche Fehleranzeige (kein heimliches Demo mehr) ──
+function showError(reason) {
+  ['s-hashrate','s-diff','s-streak','s-luck'].forEach(id => {
+    document.getElementById(id).textContent = '–';
+  });
+  document.getElementById('s-hr-unit').textContent = '';
+  document.getElementById('s-streak-since').textContent = '';
+  document.getElementById('s-workers').textContent = '';
+  document.getElementById('miners-grid').innerHTML =
+    '<div class="error-box">' +
+    '<div class="error-icon">⚠️</div>' +
+    '<div class="error-title">Keine Verbindung zu Blitzpool</div>' +
+    '<div class="error-msg">' + reason +
+    '<br><br>Adresse, die abgefragt wird:<br>' +
+    '<span style="color:var(--green-dim); word-break:break-all;">' + API + '</span>' +
+    '<br><br>Tipp: Diese Adresse mal direkt im Browser öffnen – wenn dort Daten erscheinen, ' +
+    'liegt es am Zugriffsschutz (CORS) des Pools.</div></div>';
 }
 
 // ── Demo data (based on your screenshot) ──

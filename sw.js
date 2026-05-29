@@ -1,4 +1,4 @@
-const CACHE = 'nerdminer-v1';
+const CACHE = 'nerdminer-v2';
 const ASSETS = ['./index.html', './manifest.json'];
 
 self.addEventListener('install', e => {
@@ -15,12 +15,12 @@ self.addEventListener('activate', e => {
 
 self.addEventListener('fetch', e => {
   const url = new URL(e.request.url);
-  // Always fetch API calls live
+  // API-Aufrufe NICHT abfangen – direkt ans Netzwerk durchlassen,
+  // damit die Seite echte Live-Daten bzw. echte Fehler sieht.
   if (url.hostname === 'blitzpool.yourdevice.ch') {
-    e.respondWith(fetch(e.request).catch(() => new Response('{}', { headers: { 'Content-Type': 'application/json' } })));
     return;
   }
-  // Cache-first for app shell
+  // Cache-first nur für die App-Hülle (HTML, Manifest, Icons)
   e.respondWith(
     caches.match(e.request).then(r => r || fetch(e.request))
   );
