@@ -1,0 +1,266 @@
+<!DOCTYPE html>
+<html lang="de">
+<head>
+    <meta charset="UTF-8">
+    <title>Bitpanda Meme Advisor – LIVE Preise + Intelligenter Genie-Tipp</title>
+    <style>
+        body { font-family: 'Segoe UI', Arial, sans-serif; margin: 0; padding: 20px; background: #f8f9fa; }
+        h1 { text-align: center; color: #222; margin-bottom: 10px; }
+        .warning { background: #ffeb3b; color: #c00; padding: 14px; text-align: center; font-weight: bold; border-radius: 8px; margin: 0 auto 20px; max-width: 1200px; box-shadow: 0 2px 8px rgba(0,0,0,0.1); }
+        .search-container { text-align: center; margin: 20px 0; }
+        #search { width: 100%; max-width: 520px; padding: 16px 20px 16px 50px; font-size: 18px; border: 3px solid #00cc00; border-radius: 50px; outline: none; background: white url('data:image/svg+xml;utf8,<svg xmlns=%27http://www.w3.org/2000/svg%27 width=%2724%27 height=%2724%27 viewBox=%270 0 24 24%27 fill=%27none%27 stroke=%27%2300cc00%27 stroke-width=%272.5%27><circle cx=%2711%27 cy=%2711%27 r=%278%27/><line x1=%2721%27 y1=%2721%27 x2=%2716.65%27 y2=%2716.65%27/></svg>') no-repeat 18px center; }
+        #btn { display: block; margin: 15px auto; padding: 16px 40px; font-size: 19px; background: #00cc00; color: white; border: none; border-radius: 50px; cursor: pointer; box-shadow: 0 4px 12px rgba(0,204,0,0.3); }
+        #btn:hover { background: #00b300; }
+        #status { text-align: center; font-size: 18px; font-weight: bold; color: #006600; margin: 15px; }
+        #genie-tip { background: linear-gradient(135deg, #fff3cd, #fff); border: 6px solid #ffc107; border-radius: 20px; padding: 30px; margin: 30px auto; max-width: 1200px; box-shadow: 0 10px 30px rgba(255,193,7,0.3); }
+        #genie-tip h2 { margin: 0 0 20px 0; font-size: 28px; text-align: center; color: #d39e00; }
+        .tip-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(340px, 1fr)); gap: 20px; }
+        .tip-card { background: white; border-radius: 16px; padding: 20px; border: 3px solid #28a745; box-shadow: 0 6px 15px rgba(0,0,0,0.08); }
+        .tip-card h3 { margin: 0 0 10px 0; font-size: 22px; color: #155724; }
+        .tip-price { font-size: 26px; font-weight: bold; color: #222; }
+        .tip-reason { font-size: 15px; color: #666; margin: 10px 0; }
+        .tip-actions { font-size: 16px; line-height: 1.6; }
+        .tip-actions strong { color: #00cc00; }
+    </style>
+</head>
+<body>
+    <h1>🚀 Bitpanda Meme Advisor – LIVE Preise + Intelligenter Genie-Tipp</h1>
+    <div class="warning">
+        ⚠️ KEIN Finanzrat! Nur zum Spaß! Alle Coins können dich arm machen.<br>
+        Immer selbst bei Bitpanda prüfen! Nur mit Geld spielen, das du dir leisten kannst zu verlieren!
+    </div>
+
+    <div class="search-container">
+        <input type="text" id="search" placeholder="🔍 Coin suchen (MOG, PEPE, QUBIC, BRETT, GOAT, TURBO, HYPE, BTC...)">
+    </div>
+
+    <button id="btn">🔄 Frische Preise holen + neuen Genie-Tipp (CoinGecko)</button>
+    <div id="status">Lade LIVE-Daten...</div>
+
+    <div id="genie-tip">
+        <h2>🔥 Finanz-Genie Empfehlungen (12 Monate + Bull-Market + Prognose)</h2>
+        <div id="tip-grid" class="tip-grid"></div>
+    </div>
+
+    <table id="table">
+        <thead>
+            <tr>
+                <th data-col="name">Coin</th>
+                <th data-col="symbol">Symbol</th>
+                <th data-col="price">Price CHF</th>
+                <th data-col="change">24h %</th>
+                <th data-col="signal">Signal</th>
+            </tr>
+        </thead>
+        <tbody></tbody>
+    </table>
+
+    <script>
+        const coins = [
+            {name:"Mog Coin",symbol:"MOG",coingecko_id:"mog-coin"},
+            {name:"BRETT",symbol:"BRETT",coingecko_id:"brett"},
+            {name:"Qubic",symbol:"QUBIC",coingecko_id:"qubic"},
+            {name:"HTX",symbol:"HTX",coingecko_id:"htx"},
+            {name:"PEPE",symbol:"PEPE",coingecko_id:"pepe"},
+            {name:"Shiba Inu",symbol:"SHIB",coingecko_id:"shiba-inu"},
+            {name:"Bonk",symbol:"BONK",coingecko_id:"bonk"},
+            {name:"FLOKI",symbol:"FLOKI",coingecko_id:"floki"},
+            {name:"GOAT",symbol:"GOAT",coingecko_id:"goatseus-maximus"},
+            {name:"TURBO",symbol:"TURBO",coingecko_id:"turbo"},
+            {name:"Dogecoin",symbol:"DOGE",coingecko_id:"dogecoin"},
+            {name:"Popcat",symbol:"POPCAT",coingecko_id:"popcat"},
+            {name:"BOME",symbol:"BOME",coingecko_id:"book-of-meme"},
+            {name:"Neiro",symbol:"NEIRO",coingecko_id:"neiro-on-eth"},
+            {name:"MEME",symbol:"MEME",coingecko_id:"meme"},
+            {name:"Pudgy Penguins",symbol:"PENGU",coingecko_id:"pudgy-penguins"},
+            {name:"dogwifhat",symbol:"WIF",coingecko_id:"dogwifcoin"},
+            {name:"Peanut the Squirrel",symbol:"PNUT",coingecko_id:"peanut-the-squirrel"},
+            {name:"Apu Apustaja",symbol:"APU",coingecko_id:"apu-apustaja"},
+            {name:"Terra Classic",symbol:"LUNC",coingecko_id:"terra-luna-classic"},
+            {name:"Dent",symbol:"DENT",coingecko_id:"dent"},
+            {name:"Hello",symbol:"HELLO",coingecko_id:"hello"},
+            {name:"Blast",symbol:"BLAST",coingecko_id:"blast"},
+            {name:"Smooth Love Potion",symbol:"SLP",coingecko_id:"smooth-love-potion"},
+            {name:"Volt Inu",symbol:"VOLT",coingecko_id:"volt-inu"},
+            {name:"eCash",symbol:"XEC",coingecko_id:"ecash"},
+            {name:"KOR-CHAIN",symbol:"KOR",coingecko_id:"kor"},
+            {name:"Saitama",symbol:"SAITAMA",coingecko_id:"saitama"},
+            {name:"MEW",symbol:"MEW",coingecko_id:"cat-in-a-dogs-world"},
+            {name:"Pump Fun",symbol:"PUMP",coingecko_id:"pump-fun"},
+            {name:"Zircuit",symbol:"ZIRC",coingecko_id:"zircuit"},
+            {name:"BENQI",symbol:"QI",coingecko_id:"benqi"},
+            {name:"Beam",symbol:"BEAM",coingecko_id:"beam"},
+            {name:"Zetachain",symbol:"ZETA",coingecko_id:"zetachain"},
+            {name:"Trench",symbol:"TRENCH",coingecko_id:"trench"},
+            {name:"Camp Network",symbol:"CAMP",coingecko_id:"camp-network"},
+            {name:"Gigachad",symbol:"GIGA",coingecko_id:"gigachad"},
+            {name:"Fonky",symbol:"FONKY",coingecko_id:"fonky"},
+            {name:"Streamr",symbol:"DATA",coingecko_id:"streamr"},
+            {name:"Delysium",symbol:"AGI",coingecko_id:"delysium"},
+            {name:"Sacrum",symbol:"SACRUM",coingecko_id:"sacrum"},
+            {name:"Portal to Bitcoin",symbol:"PORTAL",coingecko_id:"portal"},
+            {name:"KREST",symbol:"KREST",coingecko_id:"krest"},
+            {name:"Fuel Network",symbol:"FUEL",coingecko_id:"fuel"},
+            {name:"Ethernity",symbol:"ERN",coingecko_id:"ethernity-chain"},
+            {name:"eForce",symbol:"EFORCE",coingecko_id:"eforce"},
+            {name:"Senso",symbol:"SENSO",coingecko_id:"senso"},
+            {name:"SwftCoin",symbol:"SWFTC",coingecko_id:"swftcoin"},
+            {name:"DMAL Network",symbol:"DMAL",coingecko_id:"dmal"},
+            {name:"Reserve Rights",symbol:"RSR",coingecko_id:"reserve-rights-token"},
+            {name:"Nervos Network",symbol:"CKB",coingecko_id:"nervos-network"},
+            {name:"Alien Worlds",symbol:"TLM",coingecko_id:"alien-worlds"},
+            {name:"Inspect",symbol:"INSP",coingecko_id:"inspect"},
+            {name:"Zilliqa",symbol:"ZIL",coingecko_id:"zilliqa"},
+            {name:"PayPal USD",symbol:"PYUSD",coingecko_id:"paypal-usd"},
+            {name:"Harmony",symbol:"ONE",coingecko_id:"harmony"},
+            {name:"AIOZ",symbol:"AIOZ",coingecko_id:"aioz-network"},
+            {name:"COTI",symbol:"COTI",coingecko_id:"coti"},
+            {name:"TomTom",symbol:"TOMI",coingecko_id:"tomi"},
+            {name:"Simplet",symbol:"SIM",coingecko_id:"simplet"},
+            {name:"Alpha",symbol:"ALPHA",coingecko_id:"alpha-finance"},
+            {name:"Rondo",symbol:"RND",coingecko_id:"rondo"},
+            {name:"Linea",symbol:"LINEA",coingecko_id:"linea"},
+            {name:"Cosper",symbol:"COSPER",coingecko_id:"cosper"},
+            {name:"Velo",symbol:"VELO",coingecko_id:"velo-protocol"},
+            {name:"TON Ducks",symbol:"TONDUCKS",coingecko_id:"ton-ducks"},
+            {name:"Boodles",symbol:"BOODLES",coingecko_id:"boodles"},
+            {name:"Homerunner",symbol:"HOMERUNNER",coingecko_id:"homerunner"},
+            {name:"Normie",symbol:"NORMIE",coingecko_id:"normie"},
+            {name:"Gravity",symbol:"GRAV",coingecko_id:"gravity"},
+            {name:"Gala",symbol:"GALA",coingecko_id:"gala"},
+            {name:"Axel",symbol:"AXEL",coingecko_id:"axel"},
+            {name:"SafeCoin",symbol:"SAFECOIN",coingecko_id:"safecoin"},
+            {name:"CCV",symbol:"CCV",coingecko_id:"ccv"},
+            {name:"XYO",symbol:"XYO",coingecko_id:"xyo-network"},
+            {name:"XANA",symbol:"XANA",coingecko_id:"xana"},
+            {name:"Snek",symbol:"SNEK",coingecko_id:"snek"},
+            {name:"Book of Meme",symbol:"BOME",coingecko_id:"book-of-meme"},
+            {name:"HYPE",symbol:"HYPE",coingecko_id:"hyperliquid"},
+            {name:"Chainlink",symbol:"LINK",coingecko_id:"chainlink"},
+            {name:"NEAR Protocol",symbol:"NEAR",coingecko_id:"near"},
+            {name:"Bitcoin",symbol:"BTC",coingecko_id:"bitcoin"},
+            {name:"Ethereum",symbol:"ETH",coingecko_id:"ethereum"},
+            {name:"Solana",symbol:"SOL",coingecko_id:"solana"}
+        ];
+
+        let uniqueCoins = [];
+
+        function formatPrice(p) {
+            if (!p || p <= 0) return '0';
+            if (p >= 1000) return p.toLocaleString('de-DE');
+            if (p >= 100) return p.toFixed(2);
+            if (p >= 1) return p.toFixed(4);
+            return p.toFixed(10).replace(/0+$/, '').replace(/\.$/, '') || '0';
+        }
+
+        function getSignal(change) {
+            if (change > 15) return "🚨 EXTREMER PUMP – Sell!";
+            if (change > 8) return "🔥 Starkes Momentum – Buy möglich";
+            if (change > 3) return "📈 Positiv – Beobachten";
+            if (change > -5) return "🟡 Neutral – Hold";
+            if (change > -12) return "📉 Dip – Guter Einstieg";
+            return "❄️ Starker Dump – Vorsicht!";
+        }
+
+        function calculateBullScore(coin) {
+            return (coin.change24 * 3) + (coin.change7 * 2) + (coin.change30 * 1.5);
+        }
+
+        function renderTable() {
+            const tbody = document.querySelector('#table tbody');
+            tbody.innerHTML = '';
+            uniqueCoins.forEach(c => {
+                const priceStr = formatPrice(c.price);
+                const changeClass = c.change24 >= 0 ? 'positive' : 'negative';
+                tbody.innerHTML += `<tr><td>${c.name}</td><td><strong>${c.symbol}</strong></td><td>${priceStr}</td><td class="${changeClass}">${c.change24.toFixed(2)}%</td><td class="signal">${getSignal(c.change24)}</td></tr>`;
+            });
+        }
+
+        function renderGenieTip() {
+            const grid = document.getElementById('tip-grid');
+            grid.innerHTML = '';
+            const sorted = [...uniqueCoins]
+                .sort((a, b) => calculateBullScore(b) - calculateBullScore(a))
+                .filter(c => calculateBullScore(c) > 5)
+                .slice(0, 5);
+
+            sorted.forEach((c, i) => {
+                const price = c.price || 0;
+                const tp1 = price * 1.35;
+                const tp2 = price * 1.70;
+                const sl = price * 0.82;
+                const card = document.createElement('div');
+                card.className = 'tip-card';
+                card.innerHTML = `
+                    <h3>🥇 ${i+1}. ${c.name} (${c.symbol})</h3>
+                    <p class="tip-price">${formatPrice(price)} CHF</p>
+                    <p class="tip-reason">Bull-Score: <strong>${calculateBullScore(c).toFixed(1)}</strong></p>
+                    <div class="tip-actions">
+                        <strong>Kaufe jetzt</strong><br>
+                        Verkaufe:<br>
+                        • 50 % bei <strong>${formatPrice(tp1)} CHF</strong><br>
+                        • Rest bei <strong>${formatPrice(tp2)} CHF</strong><br>
+                        <strong>Stop-Loss:</strong> <span style="color:#ff4444;">${formatPrice(sl)} CHF</span>
+                    </div>
+                `;
+                grid.appendChild(card);
+            });
+        }
+
+        async function loadLivePrices() {
+            const status = document.getElementById('status');
+            status.innerHTML = '🔄 Hole LIVE-Daten... (Auto-Refresh aktiv)';
+            const ids = uniqueCoins.map(c => c.coingecko_id).join(',');
+            try {
+                const res = await fetch(`https://api.coingecko.com/api/v3/coins/markets?vs_currency=chf&ids=${ids}&order=market_cap_desc&per_page=250&page=1&sparkline=false&price_change_percentage=24h,7d,30d`);
+                const data = await res.json();
+
+                uniqueCoins.forEach(coin => {
+                    const item = data.find(d => d.id === coin.coingecko_id);
+                    if (item) {
+                        coin.price = item.current_price || 0;
+                        coin.change24 = item.price_change_percentage_24h || 0;
+                        coin.change7 = item.price_change_percentage_7d || 0;
+                        coin.change30 = item.price_change_percentage_30d || 0;
+                    }
+                });
+
+                status.innerHTML = '✅ LIVE-Daten geladen – Auto-Refresh alle 60 Sekunden aktiv!';
+                renderTable();
+                renderGenieTip();
+            } catch (e) {
+                status.innerHTML = '⚠️ CoinGecko nicht erreichbar – Auto-Refresh läuft weiter';
+            }
+        }
+
+        document.getElementById('btn').addEventListener('click', loadLivePrices);
+
+        document.getElementById('search').addEventListener('input', function() {
+            const term = this.value.toLowerCase();
+            const filtered = uniqueCoins.filter(c => c.name.toLowerCase().includes(term) || c.symbol.toLowerCase().includes(term));
+            const tbody = document.querySelector('#table tbody');
+            tbody.innerHTML = '';
+            filtered.forEach(c => {
+                const priceStr = formatPrice(c.price);
+                const changeClass = c.change24 >= 0 ? 'positive' : 'negative';
+                tbody.innerHTML += `<tr><td>${c.name}</td><td><strong>${c.symbol}</strong></td><td>${priceStr}</td><td class="${changeClass}">${c.change24.toFixed(2)}%</td><td class="signal">${getSignal(c.change24)}</td></tr>`;
+            });
+        });
+
+        window.onload = () => {
+            const seen = new Set();
+            uniqueCoins = coins.filter(c => {
+                if (seen.has(c.symbol)) return false;
+                seen.add(c.symbol);
+                return true;
+            }).map(c => ({...c, price: 0, change24: 0, change7: 0, change30: 0}));
+
+            renderTable();
+            loadLivePrices();
+
+            // === AUTO-REFRESH ALLE 60 SEKUNDEN ===
+            setInterval(loadLivePrices, 60000);
+        };
+    </script>
+</body>
+</html>
