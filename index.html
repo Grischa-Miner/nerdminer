@@ -286,12 +286,7 @@
 
 <script>
 const ADDRESS = 'bc1qmqhcqyz906fw8djwmt68pe09ynfwjpauy5j8en';
-const BASE = 'https://blitzpool.yourdevice.ch:3334';
-// Solo Mining API endpoints (from Blitzpool API reference)
-const API_MAIN    = `${BASE}/api/client/${ADDRESS}`;               // Adressübersicht
-const API_WORKERS = `${BASE}/api/client/${ADDRESS}/worker-shares`; // Share-Verteilung pro Worker
-const API_ACCEPTED = `${BASE}/api/client/${ADDRESS}/accepted?range=1d`;
-const API_NETWORK = `${BASE}/api/network`;
+const API = `https://blitzpool.yourdevice.ch/api/v1/worker/${ADDRESS}`;
 
 // ── Formatters ──
 function fmtHR(khz) {
@@ -332,32 +327,19 @@ function setRefreshLoading(on) {
 }
 
 // ── Render summary ──
-// Blitzpool main endpoint fields (discovered from network tab):
-//   hashrate, bestDifficulty, miningStreak, miningStreakSince,
-//   blockLuck, workerCount, deviceCount, ...
-function renderSummary(d) {
-  const hr = fmtHR(d.hashrate || d.totalHashrate || 0);
+function renderSummary(data) {
+  const w = (data.workers && data.workers[0]) || data;
+  const hr = fmtHR(w.totalHashrate || w.hashrate);
   document.getElementById('s-hashrate').textContent = hr.v;
   document.getElementById('s-hr-unit').textContent = hr.u;
-
-  document.getElementById('s-diff').textContent =
-    fmtDiff(d.bestDifficulty || d.bestShare || d.difficulty || 0);
-
-  // Streak: may be seconds/hours number or formatted string
-  const streak = d.miningStreak || d.streak || '–';
-  document.getElementById('s-streak').textContent = streak;
-  const since = d.miningStreakSince || d.streakSince || d.since || '';
-  if (since) document.getElementById('s-streak-since').textContent =
-    'seit ' + since.slice(0,10);
-
-  // Block luck
-  const luck = d.blockLuck || d.luck || '';
+  document.getElementById('s-diff').textContent = fmtDiff(w.bestDifficulty || data.bestDifficulty);
+  document.getElementById('s-streak').textContent = data.miningStreak || data.streak || '–';
+  if (data.streakSince || data.miningStreakSince) {
+    document.getElementById('s-streak-since').textContent = 'seit ' + (data.streakSince || data.miningStreakSince || '').slice(0,10);
+  }
+  const luck = data.blockLuck || data.luck || '';
   document.getElementById('s-luck').textContent = luck ? '1 in ' + luck : '–';
-
-  // Worker / device count
-  const wc = d.workerCount != null ? d.workerCount : '';
-  const dc = d.deviceCount != null ? ' · ' + d.deviceCount + ' Geräte' : '';
-  document.getElementById('s-workers').textContent = (wc !== '' ? wc + ' Worker' + dc : '–');
+  document.getElementById('s-workers').textContent = (w.workerCount || '') + (data.deviceCount ? ' / ' + data.deviceCount + ' Geräte' : '');
 }
 
 // ── Render miner cards ──
@@ -370,19 +352,16 @@ function renderMiners(sessions) {
   const maxHR = Math.max(...sessions.map(s => s.hashrate || s.totalHashrate || 0));
 
   grid.innerHTML = sessions.map((s, i) => {
-    // Blitzpool worker fields: name/sessionId, hashrate, bestDifficulty,
-    // uptimeSeconds/uptimeHours, lastSeen/updatedAt, shares/totalShares
-    const id = (s.name || s.sessionId || s.workerId || s.id || '????????').toString().slice(0, 8);
-    const hr = s.hashrate || s.totalHashrate || s.currentHashrate || 0;
+    const id = (s.sessionId || s.id || '????????').toString().slice(0, 8);
+    const hr = s.hashrate || s.totalHashrate || 0;
     const hrFmt = fmtHR(hr);
-    const diff = s.bestDifficulty || s.bestShare || s.difficulty || 0;
-    const uptimeSec = s.uptimeSeconds || (s.uptimeHours ? s.uptimeHours * 3600 : 0) || s.uptime || 0;
-    const uptime = fmtUptime(uptimeSec / 3600);
-    const lastSeen = timeSince(s.lastSeen || s.updatedAt || s.lastShare);
+    const diff = s.bestDifficulty || s.difficulty || 0;
+    const uptime = fmtUptime(s.uptimeHours || s.uptime);
+    const lastSeen = timeSince(s.lastSeen || s.updatedAt);
     const pct = maxHR > 0 ? Math.round((hr / maxHR) * 100) : 0;
-    const isOnline = s.online !== false && (!s.lastSeen || (Date.now() - new Date(s.lastSeen)) < 300000);
-    const shares = s.totalShares || s.shares || s.acceptedShares || 0;
-    const rejected = s.rejected || s.rejectedShares || 0;
+    const isOnline = !s.offline && (!s.lastSeen || (Date.now() - new Date(s.lastSeen)) < 300000);
+    const shares = s.totalShares || s.shares || 0;
+    const rejected = s.rejected || 0;
 
     return `
     <div class="nm-card">
@@ -430,56 +409,64 @@ function renderMiners(sessions) {
   }).join('');
 }
 
-// ── Fetch helper ──
-async function apiFetch(url) {
-  const res = await fetch(url, { headers: { Accept: 'application/json' }, cache: 'no-cache' });
-  if (!res.ok) throw new Error('HTTP ' + res.status + ' ' + url);
-  return res.json();
-}
-
 // ── Main load function ──
 async function loadData() {
   setStatus('loading', 'Verbinde mit Blitzpool…');
   setRefreshLoading(true);
 
   try {
-    // Fetch main client stats + worker shares in parallel
-    const [main, workersData] = await Promise.all([
-      apiFetch(API_MAIN),
-      apiFetch(API_WORKERS).catch(() => null)
-    ]);
+    const res = await fetch(API, {
+      headers: { 'Accept': 'application/json' },
+      cache: 'no-cache'
+    });
+    if (!res.ok) throw new Error('HTTP ' + res.status);
+    const data = await res.json();
 
-    console.log('📦 main:', JSON.stringify(main).slice(0, 800));
-    console.log('📦 workers:', JSON.stringify(workersData).slice(0, 600));
+    renderSummary(data);
 
-    renderSummary(main);
-
-    // /worker-shares returns object keyed by sessionId, or array
-    let sessions = [];
-    if (Array.isArray(workersData)) {
-      sessions = workersData;
-    } else if (workersData && typeof workersData === 'object') {
-      // Convert {sessionId: {hashrate, shares, ...}} to array
-      sessions = Object.entries(workersData).map(([id, v]) => ({ id, ...v }));
-    }
-    if (!sessions.length) {
-      sessions = main.sessions || main.workers || [];
-    }
+    // Try different possible session structures
+    const sessions =
+      data.sessions ||
+      (data.workers && data.workers[0] && data.workers[0].sessions) ||
+      data.workers ||
+      [];
 
     renderMiners(sessions);
     document.getElementById('demo-banner').style.display = 'none';
     setStatus('online', 'Live · ' + new Date().toLocaleTimeString('de-CH'));
-    document.getElementById('last-update').textContent =
-      'Zuletzt aktualisiert: ' + new Date().toLocaleTimeString('de-CH') + ' · Auto-Refresh alle 60s';
+    document.getElementById('last-update').textContent = 'Zuletzt aktualisiert: ' + new Date().toLocaleTimeString('de-CH') + ' · Auto-Refresh alle 60s';
 
   } catch (err) {
-    console.warn('API Fehler:', err.message, '– Demo-Modus');
+    console.warn('API error:', err.message, '– using demo data');
     loadDemo();
     setStatus('error', 'Demo-Modus (CORS) – auf Handy: Live-Daten');
     document.getElementById('demo-banner').style.display = 'flex';
   }
 
   setRefreshLoading(false);
+}
+
+// ── Demo data (based on your screenshot) ──
+function loadDemo() {
+  document.getElementById('s-hashrate').textContent = '1.80';
+  document.getElementById('s-hr-unit').textContent = 'MH/s';
+  document.getElementById('s-diff').textContent = '229.0';
+  document.getElementById('s-streak').textContent = '20d 11h 23m';
+  document.getElementById('s-streak-since').textContent = 'seit 08.05.2025';
+  document.getElementById('s-luck').textContent = '1 in 10\'223\'462\'302y';
+  document.getElementById('s-workers').textContent = '1 Worker · 7 Geräte';
+
+  const demoSessions = [
+    { id: '5f4fd2cf', hashrate: 253100, bestDifficulty: 3.45, uptimeHours: 15.9, online: true, shares: 468 },
+    { id: 'b8ede00c', hashrate: 278400, bestDifficulty: 5.90, uptimeHours: 15.9, online: true, shares: 468 },
+    { id: '7cfbc5bc', hashrate: 250600, bestDifficulty: 1.75, uptimeHours: 15.9, online: true, shares: 468 },
+    { id: '4e20c3b0', hashrate: 260900, bestDifficulty: 3.60, uptimeHours: 15.9, online: true, shares: 468 },
+    { id: '25acde83', hashrate: 254200, bestDifficulty: 229.02, uptimeHours: 15.9, online: true, shares: 468 },
+    { id: 'ec17a32e', hashrate: 267000, bestDifficulty: 1.84,  uptimeHours: 15.9, online: true, shares: 468 },
+    { id: 'd9131274', hashrate: 255600, bestDifficulty: 2.11,  uptimeHours: 15.9, online: true, shares: 468 },
+  ];
+  renderMiners(demoSessions);
+  document.getElementById('last-update').textContent = 'Demo-Modus – öffne die App auf deinem Android-Handy für Live-Daten';
 }
 
 // ── Auto-refresh every 60s ──
