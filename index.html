@@ -287,11 +287,11 @@
 <script>
 const ADDRESS = 'bc1qmqhcqyz906fw8djwmt68pe09ynfwjpauy5j8en';
 const BASE = 'https://blitzpool.yourdevice.ch:3334';
-// API endpoints discovered from Network tab
-const API_MAIN   = `${BASE}/${ADDRESS}`;           // main worker stats
-const API_WORKERS = `${BASE}/workers?range=1d`;    // individual worker/device sessions
-const API_NETWORK = `${BASE}/network`;             // network info
-const API_SHARES  = `${BASE}/worker-shares`;       // share stats
+// Solo Mining API endpoints (from Blitzpool API reference)
+const API_MAIN    = `${BASE}/api/client/${ADDRESS}`;               // Adressübersicht
+const API_WORKERS = `${BASE}/api/client/${ADDRESS}/worker-shares`; // Share-Verteilung pro Worker
+const API_ACCEPTED = `${BASE}/api/client/${ADDRESS}/accepted?range=1d`;
+const API_NETWORK = `${BASE}/api/network`;
 
 // ── Formatters ──
 function fmtHR(khz) {
@@ -443,24 +443,28 @@ async function loadData() {
   setRefreshLoading(true);
 
   try {
-    // Fetch main stats + workers in parallel
+    // Fetch main client stats + worker shares in parallel
     const [main, workersData] = await Promise.all([
       apiFetch(API_MAIN),
       apiFetch(API_WORKERS).catch(() => null)
     ]);
 
-    console.log('📦 main:', JSON.stringify(main).slice(0, 600));
-    console.log('📦 workers:', JSON.stringify(workersData).slice(0, 400));
+    console.log('📦 main:', JSON.stringify(main).slice(0, 800));
+    console.log('📦 workers:', JSON.stringify(workersData).slice(0, 600));
 
     renderSummary(main);
 
-    // Workers endpoint returns array directly or wrapped
-    const sessions =
-      (Array.isArray(workersData) ? workersData : null) ||
-      (workersData && workersData.workers) ||
-      main.sessions ||
-      main.workers ||
-      [];
+    // /worker-shares returns object keyed by sessionId, or array
+    let sessions = [];
+    if (Array.isArray(workersData)) {
+      sessions = workersData;
+    } else if (workersData && typeof workersData === 'object') {
+      // Convert {sessionId: {hashrate, shares, ...}} to array
+      sessions = Object.entries(workersData).map(([id, v]) => ({ id, ...v }));
+    }
+    if (!sessions.length) {
+      sessions = main.sessions || main.workers || [];
+    }
 
     renderMiners(sessions);
     document.getElementById('demo-banner').style.display = 'none';
