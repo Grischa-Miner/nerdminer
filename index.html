@@ -359,9 +359,15 @@ function renderMiners(sessions) {
     grid.innerHTML = '<div style="padding:20px; text-align:center; color:var(--text3); font-size:12px;">Keine aktiven Sessions gefunden.</div>';
     return;
   }
-  const maxHR = Math.max(...sessions.map(s => s.hashrate || s.totalHashrate || 0));
+  const sorted = [...sessions].sort((a, b) => {
+    const hrA = a.hashRate || a.hashrate || a.totalHashrate || 0;
+    const hrB = b.hashRate || b.hashrate || b.totalHashrate || 0;
+    return hrB - hrA;
+  });
 
-  grid.innerHTML = sessions.map((s, i) => {
+  const maxHR = Math.max(...sorted.map(s => s.hashRate || s.hashrate || s.totalHashrate || 0));
+
+  grid.innerHTML = sorted.map((s, i) => {
     // API fields: sessionId, name, hashRate, bestDifficulty, currentDifficulty, startTime, lastSeen
     const id = (s.sessionId || s.id || '????????').toString().slice(0, 8);
     const hr = s.hashRate || s.hashrate || s.totalHashrate || 0;
