@@ -3,34 +3,34 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-  <meta name="theme-color" content="#0a0a0a">
+  <meta name="theme-color" content="#f0f2f5">
   <meta name="apple-mobile-web-app-capable" content="yes">
   <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
-  <meta name="apple-mobile-web-app-title" content="NerdMiner">
-  <meta name="description" content="NerdMiner Fleet Dashboard – Blitzpool Solo Mining">
-  <title>NerdMiner Fleet</title>
+  <meta name="apple-mobile-web-app-title" content="Röbis-Miner">
+  <meta name="description" content="Röbis-Miner Fleet Dashboard – Blitzpool Solo Mining">
+  <title>Röbis-Miner Fleet</title>
   <link rel="manifest" href="manifest.json">
   <link rel="apple-touch-icon" href="icons/icon-192.png">
   <style>
     :root {
-      --bg: #0a0a0a;
-      --bg2: #111111;
-      --bg3: #1a1a1a;
-      --card: #0d0d0d;
-      --lcd-bg: #0d1a0d;
-      --lcd-border: #1a3a1a;
-      --green: #00dd55;
-      --green-dim: #3d7a3d;
-      --green-dark: #1a3a1a;
-      --amber: #f0a500;
-      --amber-dim: #8a5f00;
-      --red: #cc3300;
-      --border: #222222;
-      --border2: #2a2a2a;
-      --text: #cccccc;
-      --text2: #888888;
-      --text3: #444444;
-      --accent: #00aa44;
+      --bg: #f0f2f5;
+      --bg2: #ffffff;
+      --bg3: #e8eaed;
+      --card: #ffffff;
+      --lcd-bg: #f8f9ff;
+      --lcd-border: #d0d8ff;
+      --green: #1a73e8;
+      --green-dim: #4a90d9;
+      --green-dark: #d0e4ff;
+      --amber: #f59e0b;
+      --amber-dim: #d97706;
+      --red: #dc2626;
+      --border: #e2e5ea;
+      --border2: #d0d5dd;
+      --text: #1a1a2e;
+      --text2: #4a5568;
+      --text3: #9ba3af;
+      --accent: #1a73e8;
     }
 
     * { box-sizing: border-box; margin: 0; padding: 0; -webkit-tap-highlight-color: transparent; }
@@ -126,15 +126,15 @@
     .miners-grid { padding: 0 8px 20px; display: flex; flex-direction: column; gap: 8px; }
 
     .nm-card {
-      background: #080808;
-      border: 2px solid var(--border2);
+      background: #ffffff;
+      border: 2px solid var(--border);
       border-radius: 10px;
       overflow: hidden;
       position: relative;
     }
     .nm-card-top {
-      background: #111;
-      border-bottom: 1px solid #1a1a1a;
+      background: #f8f9fa;
+      border-bottom: 1px solid #e2e5ea;
       padding: 5px 10px;
       display: flex; align-items: center; justify-content: space-between;
     }
@@ -173,7 +173,7 @@
 
     .nm-bar-wrap { margin-top: 6px; }
     .nm-bar-label { display: flex; justify-content: space-between; font-size: 8px; color: var(--text3); margin-bottom: 3px; }
-    .nm-bar-bg { background: #0a0a0a; border: 1px solid #1a1a1a; border-radius: 2px; height: 4px; overflow: hidden; }
+    .nm-bar-bg { background: #f0f2f5; border: 1px solid #e2e5ea; border-radius: 2px; height: 4px; overflow: hidden; }
     .nm-bar-fill { height: 100%; background: var(--accent); border-radius: 2px; transition: width 0.6s ease; }
 
     .nm-meta { text-align: right; }
@@ -181,11 +181,11 @@
     .nm-meta-row.highlight { color: var(--amber-dim); }
 
     .nm-footer {
-      background: #0a0a0a;
-      border-top: 1px solid #111;
+      background: #f8f9fa;
+      border-top: 1px solid var(--border);
       padding: 3px 10px;
       font-size: 8px;
-      color: #1e1e1e;
+      color: var(--text3);
       letter-spacing: 0.1em;
       display: flex; justify-content: space-between;
     }
@@ -234,7 +234,7 @@
   <div class="header-left">
     <div class="header-logo">⛏</div>
     <div>
-      <div class="header-title">NerdMiner Fleet</div>
+      <div class="header-title">Röbis-Miner Fleet</div>
       <div class="header-sub">BLITZPOOL SOLO MINING</div>
     </div>
   </div>
@@ -264,14 +264,14 @@
     <div class="sum-unit">global best</div>
   </div>
   <div class="sum-card">
-    <div class="sum-label">Mining Streak</div>
-    <div class="sum-streak" id="s-streak">–</div>
-    <div class="sum-unit" id="s-streak-since"></div>
+    <div class="sum-label">Total Shares</div>
+    <div class="sum-value" id="s-streak">–</div>
+    <div class="sum-unit" id="s-streak-since">eingereichte Shares</div>
   </div>
   <div class="sum-card">
-    <div class="sum-label">Block Luck</div>
-    <div class="sum-value" style="font-size:12px; color:#888;" id="s-luck">–</div>
-    <div class="sum-unit" id="s-workers">–</div>
+    <div class="sum-label">Worker Online</div>
+    <div class="sum-value amber" id="s-luck">–</div>
+    <div class="sum-unit" id="s-workers">aktive Sessions</div>
   </div>
 </div>
 
@@ -343,20 +343,13 @@ function renderSummary(data, info) {
 
   document.getElementById('s-diff').textContent = fmtDiff(parseFloat(data.bestDifficulty) || 0);
 
-  // Streak from /api/info
-  const streak = info.miningStreak || info.streak || data.miningStreak || '–';
-  document.getElementById('s-streak').textContent = streak;
-  const since = info.miningStreakSince || info.streakSince || data.miningStreakSince || '';
-  if (since) {
-    document.getElementById('s-streak-since').textContent = 'seit ' + since.slice(0,10);
-  }
+  // Total shares
+  const shares = (data.totalShares || 0).toLocaleString('de-CH');
+  document.getElementById('s-streak').textContent = shares;
 
-  // Block luck from /api/info
-  const luck = info.blockLuck || info.luck || data.blockLuck || '';
-  document.getElementById('s-luck').textContent = luck ? '1 in ' + luck : '–';
-
-  const wc = data.workersCount != null ? data.workersCount : (data.workers ? data.workers.length : '');
-  document.getElementById('s-workers').textContent = wc !== '' ? wc + ' Worker' : '–';
+  // Workers online
+  const wc = data.workersCount != null ? data.workersCount : (data.workers ? data.workers.length : 0);
+  document.getElementById('s-luck').textContent = wc;
 }
 
 // ── Render miner cards ──
@@ -434,11 +427,8 @@ async function loadData() {
   setRefreshLoading(true);
 
   try {
-    // Fetch client data + pool info in parallel
-    const [data, info] = await Promise.all([
-      fetch(API, { headers: { 'Accept': 'application/json' }, cache: 'no-cache' }).then(r => r.json()),
-      fetch(API_INFO, { headers: { 'Accept': 'application/json' }, cache: 'no-cache' }).then(r => r.json()).catch(() => ({}))
-    ]);
+    const data = await fetch(API, { headers: { 'Accept': 'application/json' }, cache: 'no-cache' }).then(r => r.json());
+    const info = {};
 
     renderSummary(data, info);
 
@@ -466,9 +456,9 @@ function loadDemo() {
   document.getElementById('s-hashrate').textContent = '1.80';
   document.getElementById('s-hr-unit').textContent = 'MH/s';
   document.getElementById('s-diff').textContent = '229.0';
-  document.getElementById('s-streak').textContent = '20d 11h 23m';
+  document.getElementById('s-streak').textContent = '468\'000';
   document.getElementById('s-streak-since').textContent = 'seit 08.05.2025';
-  document.getElementById('s-luck').textContent = '1 in 10\'223\'462\'302y';
+  document.getElementById('s-luck').textContent = '7';
   document.getElementById('s-workers').textContent = '1 Worker · 7 Geräte';
 
   const demoSessions = [
