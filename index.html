@@ -286,7 +286,7 @@
 
 <script>
 const ADDRESS = 'bc1qmqhcqyz906fw8djwmt68pe09ynfwjpauy5j8en';
-const API = `https://blitzpool.yourdevice.ch/api/v1/worker/${ADDRESS}`;
+const API = `https://blitzpool.yourdevice.ch:3334/api/client/${ADDRESS}`;
 
 // ── Formatters ──
 function fmtHR(khz) {
@@ -327,19 +327,26 @@ function setRefreshLoading(on) {
 }
 
 // ── Render summary ──
+// API fields: bestDifficulty, workersCount, totalShares, totalHashrate, workers[]
 function renderSummary(data) {
-  const w = (data.workers && data.workers[0]) || data;
-  const hr = fmtHR(w.totalHashrate || w.hashrate);
+  // totalHashrate is in H/s (very large number) → convert to KH/s for fmtHR
+  const hr = fmtHR((data.totalHashrate || 0) / 1000);
   document.getElementById('s-hashrate').textContent = hr.v;
   document.getElementById('s-hr-unit').textContent = hr.u;
-  document.getElementById('s-diff').textContent = fmtDiff(w.bestDifficulty || data.bestDifficulty);
+
+  document.getElementById('s-diff').textContent = fmtDiff(parseFloat(data.bestDifficulty) || 0);
+
   document.getElementById('s-streak').textContent = data.miningStreak || data.streak || '–';
   if (data.streakSince || data.miningStreakSince) {
-    document.getElementById('s-streak-since').textContent = 'seit ' + (data.streakSince || data.miningStreakSince || '').slice(0,10);
+    document.getElementById('s-streak-since').textContent =
+      'seit ' + (data.streakSince || data.miningStreakSince || '').slice(0,10);
   }
+
   const luck = data.blockLuck || data.luck || '';
   document.getElementById('s-luck').textContent = luck ? '1 in ' + luck : '–';
-  document.getElementById('s-workers').textContent = (w.workerCount || '') + (data.deviceCount ? ' / ' + data.deviceCount + ' Geräte' : '');
+
+  const wc = data.workersCount != null ? data.workersCount : (data.workers ? data.workers.length : '');
+  document.getElementById('s-workers').textContent = wc !== '' ? wc + ' Worker' : '–';
 }
 
 // ── Render miner cards ──
@@ -352,11 +359,13 @@ function renderMiners(sessions) {
   const maxHR = Math.max(...sessions.map(s => s.hashrate || s.totalHashrate || 0));
 
   grid.innerHTML = sessions.map((s, i) => {
+    // API fields: sessionId, name, hashRate, bestDifficulty, currentDifficulty, startTime, lastSeen
     const id = (s.sessionId || s.id || '????????').toString().slice(0, 8);
-    const hr = s.hashrate || s.totalHashrate || 0;
+    const hr = s.hashRate || s.hashrate || s.totalHashrate || 0;
     const hrFmt = fmtHR(hr);
     const diff = s.bestDifficulty || s.difficulty || 0;
-    const uptime = fmtUptime(s.uptimeHours || s.uptime);
+    const uptimeHours = s.startTime ? (Date.now() - new Date(s.startTime)) / 3600000 : 0;
+    const uptime = fmtUptime(uptimeHours);
     const lastSeen = timeSince(s.lastSeen || s.updatedAt);
     const pct = maxHR > 0 ? Math.round((hr / maxHR) * 100) : 0;
     const isOnline = !s.offline && (!s.lastSeen || (Date.now() - new Date(s.lastSeen)) < 300000);
@@ -424,17 +433,14 @@ async function loadData() {
 
     renderSummary(data);
 
-    // Try different possible session structures
-    const sessions =
-      data.sessions ||
-      (data.workers && data.workers[0] && data.workers[0].sessions) ||
-      data.workers ||
-      [];
-
+    // API returns workers[] directly with sessionId, hashRate, bestDifficulty, startTime, lastSeen
+    const sessions = data.workers || [];
     renderMiners(sessions);
+
     document.getElementById('demo-banner').style.display = 'none';
     setStatus('online', 'Live · ' + new Date().toLocaleTimeString('de-CH'));
-    document.getElementById('last-update').textContent = 'Zuletzt aktualisiert: ' + new Date().toLocaleTimeString('de-CH') + ' · Auto-Refresh alle 60s';
+    document.getElementById('last-update').textContent =
+      'Zuletzt aktualisiert: ' + new Date().toLocaleTimeString('de-CH') + ' · Auto-Refresh alle 60s';
 
   } catch (err) {
     console.warn('API error:', err.message, '– using demo data');
