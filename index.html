@@ -286,11 +286,15 @@
 
 <script>
 const ADDRESS = 'bc1qmqhcqyz906fw8djwmt68pe09ynfwjpauy5j8en';
-const API = `https://blitzpool.yourdevice.ch:3334/api/client/${ADDRESS}`;
+const BASE = 'https://blitzpool.yourdevice.ch:3334';
+const API      = `${BASE}/api/client/${ADDRESS}`;
+const API_INFO = `${BASE}/api/info`;
+const API_NET  = `${BASE}/api/network`;
 
 // ── Formatters ──
 function fmtHR(khz) {
   if (!khz && khz !== 0) return { v: '–', u: '' };
+  if (khz >= 1e9) return { v: (khz/1e9).toFixed(2), u: 'TH/s' };
   if (khz >= 1e6) return { v: (khz/1e6).toFixed(2), u: 'GH/s' };
   if (khz >= 1e3) return { v: (khz/1e3).toFixed(2), u: 'MH/s' };
   return { v: khz.toFixed(1), u: 'KH/s' };
@@ -327,22 +331,28 @@ function setRefreshLoading(on) {
 }
 
 // ── Render summary ──
-// API fields: bestDifficulty, workersCount, totalShares, totalHashrate, workers[]
-function renderSummary(data) {
-  // totalHashrate is in H/s (very large number) → convert to KH/s for fmtHR
+// data: /api/client/:address → bestDifficulty, workersCount, totalHashrate (H/s), workers[]
+// info: /api/info → miningStreak, miningStreakSince, blockLuck, etc.
+function renderSummary(data, info) {
+  info = info || {};
+
+  // totalHashrate in H/s → divide by 1000 for KH/s input to fmtHR
   const hr = fmtHR((data.totalHashrate || 0) / 1000);
   document.getElementById('s-hashrate').textContent = hr.v;
   document.getElementById('s-hr-unit').textContent = hr.u;
 
   document.getElementById('s-diff').textContent = fmtDiff(parseFloat(data.bestDifficulty) || 0);
 
-  document.getElementById('s-streak').textContent = data.miningStreak || data.streak || '–';
-  if (data.streakSince || data.miningStreakSince) {
-    document.getElementById('s-streak-since').textContent =
-      'seit ' + (data.streakSince || data.miningStreakSince || '').slice(0,10);
+  // Streak from /api/info
+  const streak = info.miningStreak || info.streak || data.miningStreak || '–';
+  document.getElementById('s-streak').textContent = streak;
+  const since = info.miningStreakSince || info.streakSince || data.miningStreakSince || '';
+  if (since) {
+    document.getElementById('s-streak-since').textContent = 'seit ' + since.slice(0,10);
   }
 
-  const luck = data.blockLuck || data.luck || '';
+  // Block luck from /api/info
+  const luck = info.blockLuck || info.luck || data.blockLuck || '';
   document.getElementById('s-luck').textContent = luck ? '1 in ' + luck : '–';
 
   const wc = data.workersCount != null ? data.workersCount : (data.workers ? data.workers.length : '');
@@ -424,14 +434,13 @@ async function loadData() {
   setRefreshLoading(true);
 
   try {
-    const res = await fetch(API, {
-      headers: { 'Accept': 'application/json' },
-      cache: 'no-cache'
-    });
-    if (!res.ok) throw new Error('HTTP ' + res.status);
-    const data = await res.json();
+    // Fetch client data + pool info in parallel
+    const [data, info] = await Promise.all([
+      fetch(API, { headers: { 'Accept': 'application/json' }, cache: 'no-cache' }).then(r => r.json()),
+      fetch(API_INFO, { headers: { 'Accept': 'application/json' }, cache: 'no-cache' }).then(r => r.json()).catch(() => ({}))
+    ]);
 
-    renderSummary(data);
+    renderSummary(data, info);
 
     // API returns workers[] directly with sessionId, hashRate, bestDifficulty, startTime, lastSeen
     const sessions = data.workers || [];
