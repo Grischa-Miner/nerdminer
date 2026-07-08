@@ -341,7 +341,12 @@ function renderSummary(data, info) {
   document.getElementById('s-hashrate').textContent = hr.v;
   document.getElementById('s-hr-unit').textContent = hr.u;
 
-  document.getElementById('s-diff').textContent = fmtDiff(parseFloat(data.bestDifficulty) || 0);
+  // Workaround: Blitzpool's top-level bestDifficulty field is currently bugged (returns 0)
+  // even though each worker in workers[] reports its correct bestDifficulty as a string.
+  // Compute the max across all workers ourselves until the API is fixed server-side.
+  const workerDiffs = (data.workers || []).map(w => parseFloat(w.bestDifficulty) || 0);
+  const bestDiff = workerDiffs.length ? Math.max(...workerDiffs) : (parseFloat(data.bestDifficulty) || 0);
+  document.getElementById('s-diff').textContent = fmtDiff(bestDiff);
 
   // Total shares
   const shares = (data.totalShares || 0).toLocaleString('de-CH');
