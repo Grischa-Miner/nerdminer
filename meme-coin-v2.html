@@ -366,6 +366,35 @@
     }
   }
 
+  // Falsche CoinGecko-IDs selbst reparieren: Suche nach Name, nur Treffer mit gleichem Symbol UND ähnlichem Namen.
+  // Gefundene IDs werden im Browser gemerkt. Pro Durchgang max. 5 Suchen, jeder Coin höchstens einmal pro Woche.
+  async function resolveIds() {
+    const idmap = store.get('mc2_idmap', {});
+    const tried = store.get('mc2_idtried', {});
+    const now = Date.now();
+    const todo = coins.filter(c => !c.ok && !(tried[c.symbol] && now - tried[c.symbol] < 7 * 864e5)).slice(0, 5);
+    let found = 0;
+    for (const c of todo) {
+      tried[c.symbol] = now;
+      try {
+        const url = 'https://api.coingecko.com/api/v3/search?query=' + encodeURIComponent(c.name) +
+          (settings.apiKey ? '&x_cg_demo_api_key=' + encodeURIComponent(settings.apiKey) : '');
+        const res = await withTimeout(fetch(url), 15000, 'timeout');
+        if (!res.ok) { if (res.status === 429) delete tried[c.symbol]; if (res.status === 429) break; continue; }
+        const j = await withTimeout(res.json(), 15000, 'timeout');
+        const first = c.name.toLowerCase().split(/\s+/)[0];
+        const hits = (Array.isArray(j.coins) ? j.coins : []).filter(x => x && typeof x.id === 'string' &&
+          String(x.symbol).toLowerCase() === c.symbol.toLowerCase() && String(x.name).toLowerCase().includes(first));
+        hits.sort((a, b) => (a.market_cap_rank || 1e9) - (b.market_cap_rank || 1e9));
+        if (hits[0] && hits[0].id !== c.id && /^[a-z0-9._-]{1,80}$/.test(hits[0].id)) { idmap[c.symbol] = hits[0].id; found++; }
+      } catch (e) { delete tried[c.symbol]; break; }
+      await sleep(1200);
+    }
+    store.set('mc2_idtried', tried);
+    store.set('mc2_idmap', idmap);
+    return found;
+  }
+
   const pickChange = (item, key) => {
     const a = num(item['price_change_percentage_' + key + '_in_currency']);
     return a != null ? a : num(item['price_change_percentage_' + key]);
@@ -596,7 +625,7 @@
     const missing = coins.filter(c => !c.ok);
     $('missing-sum').textContent = 'Coins ohne Daten (' + missing.length + ')';
     $('missing').innerHTML = missing.length
-      ? esc(missing.map(c => c.symbol + ' [' + c.id + ']').join(', ')) + '<br><span class="dim">Meist falsche oder umbenannte CoinGecko-ID, oder der Coin ist (noch) nicht gelistet. Mit * markierte Scores haben unvollständige 7d/30d-Werte.</span>'
+      ? esc(missing.map(c => c.symbol + ' [' + c.id + ']').join(', ')) + '<br><span class="dim">Meist falsche oder umbenannte CoinGecko-ID. Die Seite sucht die richtige ID selbst (max. 5 pro Durchgang, jeder Coin höchstens einmal pro Woche) und lädt dann neu. Was nach ein paar Minuten noch fehlt, ist meist (noch) nicht gelistet oder zu obskur. Mit * markierte Scores haben unvollständige 7d/30d-Werte.</span>'
       : 'Alle Coins haben Daten.';
   }
 
@@ -616,6 +645,9 @@
       st.textContent = '✅ ' + okN + ' von ' + coins.length + ' Coins geladen · Stand ' + zTime(lastGood) + ' (Zürich) · Auto-Refresh alle ' + (CFG.REFRESH_MS / 60000) + ' Min.' + (fetchMarkets.lean ? ' · ohne 7-Tage-Kurve (Notfallmodus)' : '');
       evaluateAll();
       autoLogToday();
+      if (coins.some(c => !c.ok)) resolveIds().then(n => {
+        if (n > 0) { coins.forEach(c => { const m = store.get('mc2_idmap', {})[c.symbol]; if (m) c.id = m; }); setTimeout(() => load(false), 1500); }
+      });
     } catch (e) {
       st.className = 'err';
       st.textContent = '⚠️ ' + e.message + '. ' + (lastGood ? 'Zeige Daten von ' + zTime(lastGood) + '. ' : 'Noch keine Daten. ') + 'Prüfe Verbindung …';
@@ -701,6 +733,7 @@
   });
 
   /* ===== Start ===== */
+  (() => { const m = store.get('mc2_idmap', {}); coins.forEach(c => { if (m[c.symbol] && /^[a-z0-9._-]{1,80}$/.test(m[c.symbol])) c.id = m[c.symbol]; }); })();
   $('cat').value = settings.cat;
   $('minCap').value = settings.minCap;
   $('minVol').value = settings.minVol;
