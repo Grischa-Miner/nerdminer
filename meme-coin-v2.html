@@ -1,0 +1,716 @@
+<!DOCTYPE html>
+<html lang="de">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Meme-Coin V2 – Preise, Score & Paper-Trading</title>
+<style>
+  :root {
+    --bg: #f6f7f2; --ink: #1d2320; --muted: #5d6a63; --line: #dfe4dc; --card: #ffffff;
+    --green: #1f9d55; --green-d: #13703b; --gold: #f2b705; --gold-l: #fff4cc; --red: #d64545; --blue: #2b6cb0;
+  }
+  * { box-sizing: border-box; }
+  body { font-family: 'Segoe UI', system-ui, -apple-system, Arial, sans-serif; margin: 0; padding: 18px; background: var(--bg); color: var(--ink); line-height: 1.45; }
+  main { max-width: 1240px; margin: 0 auto; }
+  h1 { font-size: 26px; margin: 4px 0 4px; text-align: center; }
+  .sub { text-align: center; color: var(--muted); margin: 0 0 14px; }
+  h2 { font-size: 21px; margin: 0 0 10px; }
+  .warning { background: var(--gold); color: #5a1a1a; padding: 12px 16px; text-align: center; font-weight: 700; border-radius: 10px; margin: 0 auto 14px; }
+  details.note { background: #fff; border: 1px solid var(--line); border-radius: 10px; padding: 10px 14px; margin: 0 0 14px; }
+  details.note summary { cursor: pointer; font-weight: 600; }
+  details.note ul { margin: 8px 0 2px 18px; padding: 0; }
+  details.note li { margin: 4px 0; }
+  .controls { display: flex; flex-wrap: wrap; gap: 12px 18px; align-items: end; background: #fff; border: 1px solid var(--line); border-radius: 12px; padding: 14px; margin-bottom: 10px; }
+  .controls label { display: flex; flex-direction: column; font-size: 13px; color: var(--muted); gap: 4px; }
+  .controls input[type=number], .controls select, .controls input[type=search] { padding: 8px 10px; border: 1.5px solid #bfc8bf; border-radius: 8px; font-size: 15px; background: #fff; color: var(--ink); min-width: 120px; }
+  .controls input[type=search] { min-width: 220px; }
+  .controls .check { flex-direction: row; align-items: center; gap: 8px; font-size: 14px; color: var(--ink); }
+  button { font: inherit; cursor: pointer; }
+  .btn { background: var(--green); color: #fff; border: 0; border-radius: 999px; padding: 10px 22px; font-weight: 600; }
+  .btn:hover { background: var(--green-d); }
+  .btn.ghost { background: #fff; color: var(--green-d); border: 1.5px solid var(--green); }
+  .btn.ghost:hover { background: #eef8f1; }
+  .btn.danger { background: #fff; color: var(--red); border: 1.5px solid var(--red); }
+  .btn.small { padding: 6px 14px; font-size: 14px; }
+  :focus-visible { outline: 3px solid var(--blue); outline-offset: 2px; }
+  #status { font-size: 15px; color: var(--muted); margin: 8px 2px 16px; min-height: 22px; }
+  #status.ok { color: var(--green-d); } #status.err { color: var(--red); font-weight: 600; }
+  section.panel { background: var(--gold-l); border: 2px solid var(--gold); border-radius: 16px; padding: 20px; margin: 0 0 22px; }
+  section.panel.plain { background: #fff; border: 1px solid var(--line); }
+  .tip-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(300px, 1fr)); gap: 16px; }
+  .tip-card { background: #fff; border-radius: 14px; padding: 16px; border: 2px solid var(--green); }
+  .tip-card h3 { margin: 0 0 6px; font-size: 19px; color: var(--green-d); }
+  .tip-price { font-size: 24px; font-weight: 700; margin: 2px 0 6px; font-variant-numeric: tabular-nums; }
+  .parts { font-size: 13.5px; color: var(--muted); margin: 6px 0; font-variant-numeric: tabular-nums; }
+  .parts strong { color: var(--ink); }
+  .meta { font-size: 13.5px; color: var(--muted); margin: 4px 0 8px; }
+  .plan { font-size: 15px; line-height: 1.7; font-variant-numeric: tabular-nums; }
+  .plan .tp { color: var(--green-d); font-weight: 600; } .plan .sl { color: var(--red); font-weight: 600; }
+  .chips { display: flex; flex-wrap: wrap; gap: 6px; margin: 8px 0; }
+  .chip { font-size: 12.5px; padding: 2px 9px; border-radius: 999px; background: #fdecec; color: #8e2424; border: 1px solid #f3c4c4; }
+  .chip.info { background: #eaf2fb; color: #1d4d80; border-color: #c4d9ef; }
+  .nokauf { font-size: 12.5px; color: var(--muted); margin-top: 8px; }
+  .empty { padding: 14px; background: #fff; border-radius: 12px; border: 1px dashed #c9b25a; }
+  .stats { display: grid; grid-template-columns: repeat(auto-fit, minmax(170px, 1fr)); gap: 10px; margin: 10px 0 14px; }
+  .stat { background: #f6f7f2; border: 1px solid var(--line); border-radius: 10px; padding: 10px 12px; }
+  .stat b { display: block; font-size: 20px; font-variant-numeric: tabular-nums; }
+  .stat span { font-size: 12.5px; color: var(--muted); }
+  .warnbox { background: #fff7e0; border: 1px solid #e8cf7a; border-radius: 10px; padding: 8px 12px; font-size: 14px; margin: 8px 0; }
+  .tablewrap { overflow-x: auto; border: 1px solid var(--line); border-radius: 12px; background: #fff; }
+  table { border-collapse: collapse; width: 100%; font-size: 14px; }
+  th, td { padding: 8px 10px; text-align: right; border-bottom: 1px solid var(--line); white-space: nowrap; font-variant-numeric: tabular-nums; }
+  th:first-child, td:first-child, td.left, th.left { text-align: left; }
+  thead th { background: #eef1ea; position: sticky; top: 0; }
+  th button { all: unset; cursor: pointer; font-weight: 700; padding: 2px 2px; }
+  th button:focus-visible { outline: 3px solid var(--blue); }
+  tr:last-child td { border-bottom: 0; }
+  .pos { color: var(--green-d); font-weight: 600; } .neg { color: var(--red); font-weight: 600; } .dim { color: var(--muted); }
+  .signal { text-align: left; white-space: normal; min-width: 190px; }
+  .row-actions { display: flex; gap: 10px; flex-wrap: wrap; margin-top: 12px; }
+  footer { color: var(--muted); font-size: 13px; text-align: center; margin: 22px 0 8px; }
+  @media (prefers-reduced-motion: no-preference) { .btn { transition: background .15s; } }
+  @media (max-width: 600px) { body { padding: 10px; } h1 { font-size: 22px; } section.panel { padding: 14px; } }
+</style>
+</head>
+<body>
+<main>
+  <h1>🚀 Röbi's Meme-Coin-Lab V2</h1>
+  <p class="sub">LIVE-Preise (CoinGecko, in CHF) · Score mit Aufschlüsselung · Paper-Trading zu Ehren von Roland 😄</p>
+
+  <div class="warning">
+    ⚠️ KEIN Finanzratgeber! Nur zum Spass! Die Tipps sind keine Kaufsignale, sondern Kandidaten für Fantasie-Trades.<br>
+    Alle Coins können dich arm machen. Nur mit Geld spielen, das du dir leisten kannst zu verlieren!
+  </div>
+
+  <details class="note">
+    <summary>Was ist neu gegenüber V1?</summary>
+    <ul>
+      <li><strong>Score-Fix:</strong> V1 las 7d und 30d vermutlich aus falschen Feldnamen. Der Score war dadurch praktisch nur 3 × die 24h-Änderung. V2 liest die richtigen Felder und zeigt die Rechnung pro Coin.</li>
+      <li><strong>Filter:</strong> Mindest-Marktkapitalisierung und Mindest-Volumen, Kategorie-Auswahl (Meme / Alts), überhitzte Coins (24h über +15%) fallen raus.</li>
+      <li><strong>Hinweis-Chips:</strong> dünner Handel, Stop im Rauschen, starker Absturz auf 12 Monate, unvollständige Daten.</li>
+      <li><strong>12 Monate:</strong> Die Spalte gibt es jetzt wirklich (nur zur Einordnung, sie fliesst nicht in den Score ein).</li>
+      <li><strong>Paper-Trading:</strong> Tipps werden als Fantasie-Trades protokolliert (täglich automatisch, oder per Knopf) und gegen Bitcoin im selben Zeitraum verglichen.</li>
+      <li><strong>Ehrliche Datenlage:</strong> Coins ohne Daten erscheinen nicht mehr als «0.00% – Hold», sondern in einer eigenen Liste.</li>
+    </ul>
+  </details>
+
+  <div class="controls" role="group" aria-label="Einstellungen">
+    <label>Kategorie für Tipps
+      <select id="cat">
+        <option value="meme">Nur Meme-Coins</option>
+        <option value="meme+alt">Meme + sonstige Alts</option>
+        <option value="all">Alles (ohne Stablecoin)</option>
+      </select>
+    </label>
+    <label>Min. Marktkapitalisierung (Mio. CHF)
+      <input type="number" id="minCap" min="0" step="10" value="100">
+    </label>
+    <label>Min. Volumen 24h (Mio. CHF)
+      <input type="number" id="minVol" min="0" step="1" value="5">
+    </label>
+    <label>Fantasie-Betrag pro Trade (CHF)
+      <input type="number" id="notional" min="1" step="10" value="100">
+    </label>
+    <label>CoinGecko Demo-API-Key (optional)
+      <input type="password" id="apiKey" placeholder="CG-… (hilft gegen Rate-Limit)" autocomplete="off" spellcheck="false">
+    </label>
+    <label class="check"><input type="checkbox" id="autoLog" checked> Täglich Top 5 automatisch protokollieren</label>
+    <button class="btn" id="btn" type="button">🔄 Preise jetzt neu laden</button>
+  </div>
+  <div id="status" role="status" aria-live="polite">Lade LIVE-Daten…</div>
+
+  <section class="panel" aria-labelledby="tips-h">
+    <h2 id="tips-h">🔥 Genie-Tipps V2 (Kandidaten für Paper-Trades)</h2>
+    <div id="tip-grid" class="tip-grid"></div>
+  </section>
+
+  <section class="panel plain" aria-labelledby="paper-h">
+    <h2 id="paper-h">📝 Paper-Trading: taugt der Score überhaupt etwas?</h2>
+    <p class="dim" style="margin:0 0 6px">Jeder Eintrag: Einstieg zum Preis beim Eintragen, Verkauf 50% bei TP1, Rest bei TP2, Stop-Loss auf den Rest. Kein echtes Geld, keine Gebühren, kein Slippage. Kontrolle über stündliche Kurspunkte der letzten 7 Tage, nach 30 Tagen Zeitstopp.</p>
+    <div id="stats" class="stats"></div>
+    <div id="stats-warn"></div>
+    <div class="tablewrap"><table id="log-table">
+      <thead><tr>
+        <th class="left">Datum</th><th class="left">Coin</th><th class="left">Quelle</th><th>Einstieg</th><th>Jetzt</th><th class="left">Status</th><th>Ergebnis</th><th>Bitcoin gleich</th><th>CHF</th><th><span class="dim">löschen</span></th>
+      </tr></thead>
+      <tbody></tbody>
+    </table></div>
+    <div class="row-actions">
+      <button class="btn ghost small" id="export" type="button">⬇️ Protokoll exportieren (JSON)</button>
+      <button class="btn ghost small" id="importBtn" type="button">⬆️ Protokoll importieren</button>
+      <input type="file" id="importFile" accept="application/json" hidden>
+      <button class="btn danger small" id="clear" type="button">Protokoll löschen</button>
+    </div>
+    <p class="dim" id="storage-note" style="font-size:13px;margin:10px 0 0"></p>
+  </section>
+
+  <section class="panel plain" aria-labelledby="market-h">
+    <h2 id="market-h">📊 Alle Coins</h2>
+    <div class="controls" style="border:0;padding:0;margin:0 0 10px">
+      <label>Suche
+        <input type="search" id="search" placeholder="MOG, PEPE, BRETT, NEAR …" autocomplete="off">
+      </label>
+    </div>
+    <div class="tablewrap"><table id="table">
+      <thead><tr>
+        <th class="left" aria-sort="none"><button type="button" data-col="name">Coin</button></th>
+        <th class="left" aria-sort="none"><button type="button" data-col="cat">Kategorie</button></th>
+        <th aria-sort="none"><button type="button" data-col="price">Preis CHF</button></th>
+        <th aria-sort="none"><button type="button" data-col="c24">24h</button></th>
+        <th aria-sort="none"><button type="button" data-col="c7">7d</button></th>
+        <th aria-sort="none"><button type="button" data-col="c30">30d</button></th>
+        <th aria-sort="none"><button type="button" data-col="c1y">12M</button></th>
+        <th aria-sort="none"><button type="button" data-col="mcap">Marktkap.</button></th>
+        <th aria-sort="none"><button type="button" data-col="vol">Volumen 24h</button></th>
+        <th aria-sort="none"><button type="button" data-col="score">Score</button></th>
+        <th class="left" aria-sort="none"><button type="button" data-col="signal">Signal</button></th>
+      </tr></thead>
+      <tbody></tbody>
+    </table></div>
+    <details class="note" style="margin-top:12px"><summary id="missing-sum">Coins ohne Daten</summary><div id="missing" style="margin-top:6px"></div></details>
+  </section>
+
+  <footer>
+    Datenquelle: CoinGecko (öffentliche API, evtl. Rate-Limit). Das Paper-Protokoll liegt nur in deinem Browser (localStorage), nichts wird an einen Server gesendet.<br>
+    Ob ein Coin bei Bitpanda handelbar ist, prüfst du selbst. Diese Seite weiss das nicht.
+  </footer>
+</main>
+
+<script>
+(() => {
+  'use strict';
+
+  /* ===== Einstellungen, die du hier anpassen kannst ===== */
+  const CFG = {
+    TP1: 1.35,           // Teilverkauf bei +35%
+    TP2: 1.70,           // Rest bei +70%
+    SL: 0.82,            // Stop-Loss bei -18%
+    SHARE_TP1: 0.5,      // Anteil, der bei TP1 verkauft wird
+    OVERHEAT: 15,        // 24h über diesem Wert = überhitzt, kein Tipp
+    MIN_SCORE: 5,        // Mindest-Score für einen Tipp
+    TOP_N: 5,
+    REFRESH_MS: 120000,  // Auto-Refresh (CoinGecko-Limit schonen)
+    TIME_STOP_DAYS: 30,
+    MIN_N_STATS: 30      // ab so vielen abgeschlossenen Trades ist die Statistik halbwegs aussagekräftig
+  };
+  const W = { c24: 3, c7: 2, c30: 1.5 };  // Gewichte des Bull-Scores (wie in V1)
+
+  /* ===== Coin-Liste ===== */
+  const RAW = [
+    ['Mog Coin','MOG','mog-coin'],['BRETT','BRETT','brett'],['Qubic','QUBIC','qubic'],['HTX','HTX','htx'],
+    ['PEPE','PEPE','pepe'],['Shiba Inu','SHIB','shiba-inu'],['Bonk','BONK','bonk'],['FLOKI','FLOKI','floki'],
+    ['GOAT','GOAT','goatseus-maximus'],['TURBO','TURBO','turbo'],['Dogecoin','DOGE','dogecoin'],['Popcat','POPCAT','popcat'],
+    ['BOME','BOME','book-of-meme'],['Neiro','NEIRO','neiro-on-eth'],['MEME','MEME','meme'],['Pudgy Penguins','PENGU','pudgy-penguins'],
+    ['dogwifhat','WIF','dogwifcoin'],['Peanut the Squirrel','PNUT','peanut-the-squirrel'],['Apu Apustaja','APU','apu-apustaja'],
+    ['Terra Classic','LUNC','terra-luna-classic'],['Dent','DENT','dent'],['Hello','HELLO','hello'],['Blast','BLAST','blast'],
+    ['Smooth Love Potion','SLP','smooth-love-potion'],['Volt Inu','VOLT','volt-inu'],['eCash','XEC','ecash'],['KOR-CHAIN','KOR','kor'],
+    ['Saitama','SAITAMA','saitama'],['MEW','MEW','cat-in-a-dogs-world'],['Pump Fun','PUMP','pump-fun'],['Zircuit','ZIRC','zircuit'],
+    ['BENQI','QI','benqi'],['Beam','BEAM','beam'],['Zetachain','ZETA','zetachain'],['Trench','TRENCH','trench'],['Camp Network','CAMP','camp-network'],
+    ['Gigachad','GIGA','gigachad'],['Fonky','FONKY','fonky'],['Streamr','DATA','streamr'],['Delysium','AGI','delysium'],['Sacrum','SACRUM','sacrum'],
+    ['Portal to Bitcoin','PORTAL','portal'],['KREST','KREST','krest'],['Fuel Network','FUEL','fuel'],['Ethernity','ERN','ethernity-chain'],
+    ['eForce','EFORCE','eforce'],['Senso','SENSO','senso'],['SwftCoin','SWFTC','swftcoin'],['DMAL Network','DMAL','dmal'],
+    ['Reserve Rights','RSR','reserve-rights-token'],['Nervos Network','CKB','nervos-network'],['Alien Worlds','TLM','alien-worlds'],
+    ['Inspect','INSP','inspect'],['Zilliqa','ZIL','zilliqa'],['PayPal USD','PYUSD','paypal-usd'],['Harmony','ONE','harmony'],
+    ['AIOZ','AIOZ','aioz-network'],['COTI','COTI','coti'],['TomTom','TOMI','tomi'],['Simplet','SIM','simplet'],['Alpha','ALPHA','alpha-finance'],
+    ['Rondo','RND','rondo'],['Linea','LINEA','linea'],['Cosper','COSPER','cosper'],['Velo','VELO','velo-protocol'],['TON Ducks','TONDUCKS','ton-ducks'],
+    ['Boodles','BOODLES','boodles'],['Homerunner','HOMERUNNER','homerunner'],['Normie','NORMIE','normie'],['Gravity','GRAV','gravity'],
+    ['Gala','GALA','gala'],['Axel','AXEL','axel'],['SafeCoin','SAFECOIN','safecoin'],['CCV','CCV','ccv'],['XYO','XYO','xyo-network'],
+    ['XANA','XANA','xana'],['Snek','SNEK','snek'],['HYPE','HYPE','hyperliquid'],['Chainlink','LINK','chainlink'],
+    ['NEAR Protocol','NEAR','near'],['Bitcoin','BTC','bitcoin'],['Ethereum','ETH','ethereum'],['Solana','SOL','solana']
+  ];
+  const MEMES = new Set(['MOG','BRETT','PEPE','SHIB','BONK','FLOKI','GOAT','TURBO','DOGE','POPCAT','BOME','NEIRO','MEME','PENGU','WIF','PNUT','APU','MEW','GIGA','SNEK','NORMIE','VOLT','SAITAMA']);
+  const REFS = new Set(['BTC','ETH','SOL','NEAR','LINK','HYPE']);   // Referenz, kein Meme
+  const STABLE = new Set(['PYUSD']);
+  const CAT_LABEL = { meme: 'Meme', alt: 'Alt', ref: 'Referenz', stable: 'Stablecoin' };
+  const catOf = s => STABLE.has(s) ? 'stable' : REFS.has(s) ? 'ref' : MEMES.has(s) ? 'meme' : 'alt';
+
+  const seen = new Set();
+  const coins = RAW.filter(r => !seen.has(r[1]) && seen.add(r[1])).map(r => ({
+    name: r[0], symbol: r[1], id: r[2], cat: catOf(r[1]),
+    ok: false, price: null, mcap: null, vol: null, c24: null, c7: null, c30: null, c1y: null,
+    spark: null, updated: null, dvol: null, score: null, partial: false
+  }));
+
+  /* ===== Hilfsfunktionen ===== */
+  const $ = id => document.getElementById(id);
+  const esc = s => String(s).replace(/[&<>"']/g, ch => ({ '&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;' }[ch]));
+  const num = v => (typeof v === 'number' && isFinite(v)) ? v : null;
+  const fmtPrice = p => {
+    if (p == null || !isFinite(p) || p <= 0) return '–';
+    if (p >= 1000) return p.toLocaleString('de-CH', { maximumFractionDigits: 0 });
+    if (p >= 100) return p.toFixed(2);
+    if (p >= 1) return p.toFixed(3);
+    return p.toFixed(Math.min(12, 3 - Math.floor(Math.log10(p))));
+  };
+  const fmtPct = v => v == null ? '–' : (v > 0 ? '+' : '') + v.toFixed(1) + '%';
+  const pctCls = v => v == null ? 'dim' : v >= 0 ? 'pos' : 'neg';
+  const fmtBig = v => v == null ? '–' : v >= 1e9 ? (v / 1e9).toFixed(2) + ' Mrd.' : v >= 1e6 ? (v / 1e6).toFixed(1) + ' Mio.' : v >= 1e3 ? (v / 1e3).toFixed(0) + ' Tsd.' : v.toFixed(0);
+  const zTime = ms => new Date(ms).toLocaleTimeString('de-CH', { timeZone: 'Europe/Zurich', hour: '2-digit', minute: '2-digit', second: '2-digit' });
+  const zDate = ms => new Date(ms).toLocaleDateString('sv-SE', { timeZone: 'Europe/Zurich' });
+  const zDateFmt = ms => new Date(ms).toLocaleDateString('de-CH', { timeZone: 'Europe/Zurich', day: '2-digit', month: '2-digit', year: '2-digit' });
+
+  const dailyVol = spark => {   // Tagesschwankung (Standardabweichung in %) aus stündlichen Kursen der letzten 7 Tage
+    if (!Array.isArray(spark) || spark.length < 48) return null;
+    const r = [];
+    for (let i = 1; i < spark.length; i++) if (spark[i] > 0 && spark[i - 1] > 0) r.push(Math.log(spark[i] / spark[i - 1]));
+    if (r.length < 24) return null;
+    const m = r.reduce((a, b) => a + b, 0) / r.length;
+    const v = r.reduce((a, b) => a + (b - m) ** 2, 0) / (r.length - 1);
+    return Math.sqrt(v) * Math.sqrt(24) * 100;
+  };
+
+  const signalOf = c => {
+    const x = c.c24;
+    if (x == null) return '❔ Keine Daten';
+    if (x > 15) return '🚨 Überhitzt – nicht nachjagen';
+    if (x > 8) return '🔥 Starkes Momentum – nur mit Plan';
+    if (x > 3) return '📈 Positiv – beobachten';
+    if (x > -5) return '🟡 Neutral – Hold';
+    if (x > -12) return '📉 Dip – nur mit Plan';
+    return '❄️ Starker Dump – Vorsicht!';
+  };
+
+  const flagsOf = c => {
+    const f = [];
+    if (c.vol != null && c.mcap > 0 && c.vol / c.mcap < 0.01) f.push(['dünner Handel (Volumen unter 1% der Marktkap.)', false]);
+    if (c.dvol != null && (1 - CFG.SL) * 100 < 1.5 * c.dvol) f.push(['Stop im Rauschen (Tagesschwankung ±' + c.dvol.toFixed(0) + '%)', false]);
+    if (c.c1y != null && c.c1y < -70) f.push(['12M: ' + fmtPct(c.c1y), false]);
+    if (c.partial) f.push(['Daten unvollständig (7d/30d fehlt)', false]);
+    if (c.c24 != null && c.c24 > CFG.OVERHEAT) f.push(['überhitzt', false]);
+    return f;
+  };
+
+  /* ===== Zustand + Speicher ===== */
+  const mem = {};
+  let persistOk = true;
+  const store = {
+    get(k, d) { try { const v = localStorage.getItem(k); return v ? JSON.parse(v) : (k in mem ? mem[k] : d); } catch (e) { persistOk = false; return k in mem ? mem[k] : d; } },
+    set(k, v) { mem[k] = v; try { localStorage.setItem(k, JSON.stringify(v)); } catch (e) { persistOk = false; } }
+  };
+  const defaults = { cat: 'meme', minCap: 100, minVol: 5, notional: 100, autoLog: true, apiKey: '' };
+  let settings = Object.assign({}, defaults, store.get('mc2_settings', {}));
+  let log = sanitizeLog(store.get('mc2_log', []));
+  let sortState = { col: 'score', dir: -1 };
+  let lastGood = null;
+  let autoLogged = false;
+
+  function sanitizeLog(arr) {
+    if (!Array.isArray(arr)) return [];
+    return arr.map(e => {
+      if (!e || typeof e !== 'object') return null;
+      const n = k => { const v = Number(e[k]); return isFinite(v) ? v : null; };
+      const o = {
+        id: String(e.id || (Date.now() + Math.random())).slice(0, 60),
+        symbol: String(e.symbol || '?').slice(0, 20), name: String(e.name || e.symbol || '?').slice(0, 60), cid: String(e.cid || '').slice(0, 80),
+        t: n('t'), entry: n('entry'), btcEntry: n('btcEntry'), tp1: n('tp1'), tp2: n('tp2'), sl: n('sl'), score: n('score'),
+        notional: n('notional') || 100, src: e.src === 'auto' ? 'auto' : 'manuell',
+        rem: n('rem'), realized: n('realized') || 0, tp1Hit: !!e.tp1Hit, status: String(e.status || 'offen').slice(0, 40),
+        closedAt: n('closedAt'), lastChecked: n('lastChecked'), lastPrice: n('lastPrice'), btcClose: n('btcClose')
+      };
+      if (o.t == null || o.entry == null || o.entry <= 0 || o.tp1 == null || o.tp2 == null || o.sl == null) return null;
+      if (o.rem == null) o.rem = 1;
+      if (o.lastChecked == null) o.lastChecked = o.t;
+      return o;
+    }).filter(Boolean);
+  }
+  const saveLog = () => store.set('mc2_log', log);
+  const saveSettings = () => store.set('mc2_settings', settings);
+
+  /* ===== Daten holen ===== */
+  const sleep = ms => new Promise(r => setTimeout(r, ms));
+  const withTimeout = (p, ms, msg) => {
+    let to;
+    const t = new Promise((_, rej) => { to = setTimeout(() => rej(new Error(msg)), ms); });
+    return Promise.race([p, t]).finally(() => clearTimeout(to));
+  };
+  // Hinweis: bewusst ohne AbortController, manche Browser-Erweiterungen können das AbortSignal nicht weiterreichen
+  async function getJson(url) {
+    const res = await withTimeout(fetch(url), 25000, 'Zeitüberschreitung (25 s)');
+    if (res.status === 429) { const e = new Error('CoinGecko-Limit erreicht (429)'); e.status = 429; throw e; }
+    if (!res.ok) { const e = new Error('HTTP ' + res.status); e.status = res.status; throw e; }
+    const data = await withTimeout(res.json(), 25000, 'Zeitüberschreitung beim Lesen');
+    if (!Array.isArray(data)) throw new Error('Unerwartete Antwort');
+    return data;
+  }
+  const buildUrl = (ids, spark) => 'https://api.coingecko.com/api/v3/coins/markets?vs_currency=chf&ids=' + ids.join(',') +
+    '&order=market_cap_desc&per_page=250&page=1&sparkline=' + (spark ? 'true' : 'false') +
+    '&price_change_percentage=24h,7d,30d,1y' + (settings.apiKey ? '&x_cg_demo_api_key=' + encodeURIComponent(settings.apiKey) : '');
+
+  async function fetchMarkets() {
+    const ids = coins.map(c => c.id);
+    const chunks = [];
+    for (let i = 0; i < ids.length; i += 30) chunks.push(ids.slice(i, i + 30));   // kleine Pakete: kürzere URL, weniger Daten pro Anfrage
+    let all = [], leanUsed = false;
+    for (let i = 0; i < chunks.length; i++) {
+      let data;
+      try { data = await getJson(buildUrl(chunks[i], true)); }
+      catch (e) {
+        if (e.status === 429) throw e;
+        data = await getJson(buildUrl(chunks[i], false));   // Notfall: ohne Sparkline (kleinere Antwort)
+        leanUsed = true;
+      }
+      all = all.concat(data);
+      if (i < chunks.length - 1) await sleep(600);
+    }
+    fetchMarkets.lean = leanUsed;
+    return all;
+  }
+
+  async function diagnose() {   // läuft nur nach einem Fehler: ist CoinGecko überhaupt erreichbar?
+    try {
+      const r = await withTimeout(fetch('https://api.coingecko.com/api/v3/ping'), 10000, 'timeout');
+      return r.ok ? 'CoinGecko ist erreichbar, aber die Daten-Abfrage wird abgewiesen. Meist Rate-Limit: andere Tabs mit der Seite (V1!) schliessen, 1–2 Minuten warten oder oben einen kostenlosen Demo-API-Key eintragen.'
+                  : 'CoinGecko antwortet mit HTTP ' + r.status + '.';
+    } catch (e) {
+      return 'CoinGecko ist von diesem Browser aus nicht erreichbar. Häufigste Ursachen: Adblocker/Datenschutz-Erweiterung (für diese Seite pausieren), VPN/Firmen-Netz, oder kein Internet.';
+    }
+  }
+
+  const pickChange = (item, key) => {
+    const a = num(item['price_change_percentage_' + key + '_in_currency']);
+    return a != null ? a : num(item['price_change_percentage_' + key]);
+  };
+
+  function applyData(data) {
+    const byId = new Map(data.map(d => [d.id, d]));
+    coins.forEach(c => {
+      const it = byId.get(c.id);
+      c.ok = false;
+      if (!it || num(it.current_price) == null || it.current_price <= 0) return;
+      c.ok = true;
+      c.price = it.current_price;
+      c.mcap = num(it.market_cap) || 0;
+      c.vol = num(it.total_volume) || 0;
+      c.c24 = pickChange(it, '24h');
+      c.c7 = pickChange(it, '7d');
+      c.c30 = pickChange(it, '30d');
+      c.c1y = pickChange(it, '1y');
+      c.spark = it.sparkline_in_7d && Array.isArray(it.sparkline_in_7d.price) ? it.sparkline_in_7d.price : null;
+      const lu = Date.parse(it.last_updated);
+      c.updated = isFinite(lu) ? lu : Date.now();
+      c.dvol = dailyVol(c.spark);
+      c.partial = c.c24 == null || c.c7 == null || c.c30 == null;
+      c.score = (c.c24 || 0) * W.c24 + (c.c7 || 0) * W.c7 + (c.c30 || 0) * W.c30;
+    });
+  }
+
+  /* ===== Tipps ===== */
+  const catAllowed = cat => {
+    if (cat === 'stable') return false;
+    if (settings.cat === 'meme') return cat === 'meme';
+    if (settings.cat === 'meme+alt') return cat === 'meme' || cat === 'alt';
+    return true;
+  };
+  const candidates = () => coins
+    .filter(c => c.ok && !c.partial && catAllowed(c.cat) &&
+      c.mcap >= settings.minCap * 1e6 && c.vol >= settings.minVol * 1e6 &&
+      c.c24 <= CFG.OVERHEAT && c.score > CFG.MIN_SCORE)
+    .sort((a, b) => b.score - a.score)
+    .slice(0, CFG.TOP_N);
+
+  function renderTips() {
+    const grid = $('tip-grid');
+    const tips = candidates();
+    if (!coins.some(c => c.ok)) { grid.innerHTML = '<div class="empty">Noch keine Daten geladen.</div>'; return; }
+    if (!tips.length) {
+      grid.innerHTML = '<div class="empty"><strong>Kein Coin erfüllt die Filter.</strong><br>Das ist auch eine Antwort: Wenn nichts Liquides positiv läuft, gibt es keinen «Tipp». Du kannst die Filter oben lockern, aber überleg dir, warum du das tun würdest. 🙂</div>';
+      return;
+    }
+    grid.innerHTML = tips.map((c, i) => {
+      const chips = flagsOf(c).map(f => '<span class="chip">' + esc(f[0]) + '</span>').join('');
+      const part = (label, v, w) => label + ' ' + fmtPct(v) + ' × ' + w + ' = <strong>' + (((v || 0) * w) >= 0 ? '+' : '') + ((v || 0) * w).toFixed(1) + '</strong>';
+      return '<article class="tip-card">' +
+        '<h3>' + (i + 1) + '. ' + esc(c.name) + ' (' + esc(c.symbol) + ')</h3>' +
+        '<div class="tip-price">' + fmtPrice(c.price) + ' CHF</div>' +
+        '<div class="parts">Bull-Score <strong>' + c.score.toFixed(1) + '</strong><br>' +
+          part('24h', c.c24, W.c24) + '<br>' + part('7d', c.c7, W.c7) + '<br>' + part('30d', c.c30, W.c30) + '</div>' +
+        '<div class="meta">Marktkap. ' + fmtBig(c.mcap) + ' CHF · Volumen 24h ' + fmtBig(c.vol) + ' CHF · 12M ' + fmtPct(c.c1y) + '</div>' +
+        (chips ? '<div class="chips">' + chips + '</div>' : '') +
+        '<div class="plan">Plan für den Paper-Trade:<br>' +
+          '• 50% bei <span class="tp">' + fmtPrice(c.price * CFG.TP1) + '</span> (+' + Math.round((CFG.TP1 - 1) * 100) + '%)<br>' +
+          '• Rest bei <span class="tp">' + fmtPrice(c.price * CFG.TP2) + '</span> (+' + Math.round((CFG.TP2 - 1) * 100) + '%)<br>' +
+          '• Stop-Loss <span class="sl">' + fmtPrice(c.price * CFG.SL) + '</span> (' + Math.round((CFG.SL - 1) * 100) + '%)</div>' +
+        '<div style="margin-top:10px"><button class="btn small" type="button" data-log="' + esc(c.symbol) + '">📝 Als Paper-Trade eintragen</button></div>' +
+        '<div class="nokauf">Kein Kaufsignal. Nur Fantasie-Geld.</div>' +
+      '</article>';
+    }).join('');
+  }
+
+  /* ===== Paper-Trading ===== */
+  const btcNow = () => { const b = coins.find(c => c.symbol === 'BTC'); return b && b.ok ? b.price : null; };
+
+  function newEntry(c, src) {
+    return {
+      id: Date.now() + '-' + c.symbol + '-' + Math.random().toString(36).slice(2, 6),
+      symbol: c.symbol, name: c.name, cid: c.id, t: Date.now(), entry: c.price, btcEntry: btcNow(),
+      tp1: c.price * CFG.TP1, tp2: c.price * CFG.TP2, sl: c.price * CFG.SL, score: c.score,
+      notional: settings.notional, src, rem: 1, realized: 0, tp1Hit: false, status: 'offen',
+      closedAt: null, lastChecked: Date.now(), lastPrice: c.price, btcClose: null
+    };
+  }
+
+  function step(e, p, t) {
+    if (e.rem <= 0) return;
+    if (!e.tp1Hit && p >= e.tp1) { e.tp1Hit = true; e.realized += CFG.SHARE_TP1 * CFG.TP1; e.rem -= CFG.SHARE_TP1; }
+    if (e.rem > 0 && p >= e.tp2) { e.realized += e.rem * CFG.TP2; e.rem = 0; e.status = 'TP2 erreicht'; e.closedAt = t; return; }
+    if (e.rem > 0 && p <= e.sl) { e.realized += e.rem * CFG.SL; e.rem = 0; e.status = e.tp1Hit ? 'Stop (nach TP1)' : 'Stop-Loss'; e.closedAt = t; }
+  }
+  const closeAt = (e, status, p, t) => { e.realized += e.rem * (p / e.entry); e.rem = 0; e.status = status; e.closedAt = t; };
+
+  function evaluate(e, c) {
+    if (e.rem <= 0 || !c || !c.ok) return;
+    const pts = [];
+    if (c.spark && c.spark.length) {
+      const n = c.spark.length, now = c.updated || Date.now();
+      for (let i = 0; i < n; i++) { const t = now - (n - 1 - i) * 3600e3; if (t > e.lastChecked) pts.push({ t, p: c.spark[i] }); }
+    }
+    pts.push({ t: Date.now(), p: c.price });
+    for (const pt of pts) { step(e, pt.p, pt.t); if (e.rem <= 0) break; }
+    e.lastChecked = Date.now();
+    e.lastPrice = c.price;
+    if (e.rem > 0 && Date.now() - e.t > CFG.TIME_STOP_DAYS * 864e5) closeAt(e, 'Zeitstopp', c.price, Date.now());
+    if (e.rem <= 0 && e.btcClose == null) e.btcClose = btcNow();
+  }
+
+  const multOf = (e, price) => e.realized + e.rem * (price / e.entry);
+  const retOf = e => { const p = e.rem > 0 ? (e.lastPrice != null ? e.lastPrice : e.entry) : e.entry; return (multOf(e, p) - 1) * 100; };
+  const btcRetOf = e => {
+    const ref = e.btcClose != null ? e.btcClose : btcNow();
+    return (e.btcEntry && ref) ? (ref / e.btcEntry - 1) * 100 : null;
+  };
+
+  function evaluateAll() {
+    let changed = false;
+    log.forEach(e => {
+      if (e.rem > 0) {
+        const c = coins.find(x => x.id === e.cid || x.symbol === e.symbol);
+        const before = JSON.stringify([e.rem, e.status, e.lastPrice]);
+        evaluate(e, c);
+        if (before !== JSON.stringify([e.rem, e.status, e.lastPrice])) changed = true;
+      }
+    });
+    if (changed) saveLog();
+  }
+
+  function autoLogToday() {
+    if (autoLogged || !settings.autoLog || !coins.some(c => c.ok)) return;
+    autoLogged = true;
+    const today = zDate(Date.now());
+    if (log.some(e => e.src === 'auto' && zDate(e.t) === today)) return;
+    const tips = candidates();
+    tips.forEach(c => log.unshift(newEntry(c, 'auto')));
+    if (tips.length) saveLog();
+  }
+
+  function renderLog() {
+    const tb = $('log-table').querySelector('tbody');
+    if (!log.length) {
+      tb.innerHTML = '<tr><td class="left dim" colspan="10" style="white-space:normal">Noch keine Einträge. Trag einen Tipp per Knopf ein oder lass die tägliche Protokollierung laufen und komm in ein paar Wochen wieder.</td></tr>';
+    } else {
+      tb.innerHTML = log.map(e => {
+        const r = retOf(e), b = btcRetOf(e);
+        const chf = e.notional * r / 100;
+        const cur = e.rem > 0 ? e.lastPrice : null;
+        return '<tr>' +
+          '<td class="left">' + esc(zDateFmt(e.t)) + '</td>' +
+          '<td class="left"><strong>' + esc(e.symbol) + '</strong></td>' +
+          '<td class="left dim">' + esc(e.src) + '</td>' +
+          '<td>' + fmtPrice(e.entry) + '</td>' +
+          '<td>' + (cur != null ? fmtPrice(cur) : '–') + '</td>' +
+          '<td class="left">' + esc(e.status) + (e.tp1Hit && e.rem > 0 ? ' (TP1 ✓)' : '') + '</td>' +
+          '<td class="' + pctCls(r) + '">' + fmtPct(r) + '</td>' +
+          '<td class="' + pctCls(b) + '">' + fmtPct(b) + '</td>' +
+          '<td class="' + pctCls(chf) + '">' + (chf >= 0 ? '+' : '') + chf.toFixed(2) + '</td>' +
+          '<td><button class="btn danger small" type="button" data-del="' + esc(e.id) + '" aria-label="Eintrag löschen">✕</button></td>' +
+        '</tr>';
+      }).join('');
+    }
+    renderStats();
+    $('storage-note').textContent = persistOk ? '' : '⚠️ Der Browser-Speicher ist nicht verfügbar. Das Protokoll gilt nur für diese Sitzung. Exportiere es, wenn es dir wichtig ist.';
+  }
+
+  function renderStats() {
+    const n = log.length;
+    const closed = log.filter(e => e.rem <= 0);
+    const open = n - closed.length;
+    const mean = a => a.length ? a.reduce((x, y) => x + y, 0) / a.length : null;
+    const rets = log.map(retOf);
+    const withBtc = log.map(e => ({ r: retOf(e), b: btcRetOf(e) })).filter(x => x.b != null);
+    const mr = mean(rets), mrb = mean(withBtc.map(x => x.r)), mb = mean(withBtc.map(x => x.b));
+    const stops = closed.filter(e => /Stop-Loss$/.test(e.status)).length;
+    const tp1 = log.filter(e => e.tp1Hit).length;
+    const total = log.reduce((s, e) => s + e.notional * retOf(e) / 100, 0);
+    const box = (v, l, cls) => '<div class="stat"><b class="' + (cls || '') + '">' + v + '</b><span>' + l + '</span></div>';
+    $('stats').innerHTML =
+      box(n + ' <span class="dim" style="font-size:14px;font-weight:400">(' + open + ' offen)</span>', 'Trades im Protokoll') +
+      box(fmtPct(mr), 'Ø Ergebnis pro Trade', pctCls(mr)) +
+      box(fmtPct(mb), 'Ø Bitcoin im selben Zeitraum', pctCls(mb)) +
+      box(withBtc.length ? fmtPct(mrb - mb) : '–', 'Score minus Bitcoin (Ø)', withBtc.length ? pctCls(mrb - mb) : 'dim') +
+      box(n ? Math.round(tp1 / n * 100) + '%' : '–', 'Trades mit TP1 erreicht') +
+      box(closed.length ? Math.round(stops / closed.length * 100) + '%' : '–', 'Abgeschlossen mit Stop-Loss') +
+      box((total >= 0 ? '+' : '') + total.toFixed(2) + ' CHF', 'Fantasie-Gewinn gesamt', pctCls(total));
+    $('stats-warn').innerHTML = closed.length < CFG.MIN_N_STATS
+      ? '<div class="warnbox">Aussagekraft: <strong>gering</strong>. Erst ' + closed.length + ' von ' + CFG.MIN_N_STATS + ' abgeschlossenen Trades. Mit so wenigen Fällen entscheidet der Zufall, nicht der Score. Und: Wenn der Score Bitcoin nicht schlägt, ist er ein teurer Würfel.</div>'
+      : '';
+  }
+
+  /* ===== Tabelle ===== */
+  function sortVal(c, col) {
+    switch (col) {
+      case 'name': return c.name.toLowerCase();
+      case 'cat': return CAT_LABEL[c.cat];
+      case 'signal': return c.c24 == null ? -1e9 : c.c24;
+      default: return c[col] == null ? null : c[col];
+    }
+  }
+  function renderTable() {
+    const term = $('search').value.trim().toLowerCase();
+    let rows = coins.filter(c => c.ok && (!term || c.name.toLowerCase().includes(term) || c.symbol.toLowerCase().includes(term)));
+    const { col, dir } = sortState;
+    rows.sort((a, b) => {
+      const x = sortVal(a, col), y = sortVal(b, col);
+      if (x == null && y == null) return 0;
+      if (x == null) return 1;
+      if (y == null) return -1;
+      return (x < y ? -1 : x > y ? 1 : 0) * dir;
+    });
+    document.querySelectorAll('#table th').forEach(th => {
+      const b = th.querySelector('button');
+      th.setAttribute('aria-sort', b && b.dataset.col === col ? (dir > 0 ? 'ascending' : 'descending') : 'none');
+    });
+    $('table').querySelector('tbody').innerHTML = rows.map(c => {
+      return '<tr>' +
+        '<td class="left"><strong>' + esc(c.symbol) + '</strong> <span class="dim">' + esc(c.name) + '</span></td>' +
+        '<td class="left dim">' + esc(CAT_LABEL[c.cat]) + '</td>' +
+        '<td>' + fmtPrice(c.price) + '</td>' +
+        '<td class="' + pctCls(c.c24) + '">' + fmtPct(c.c24) + '</td>' +
+        '<td class="' + pctCls(c.c7) + '">' + fmtPct(c.c7) + '</td>' +
+        '<td class="' + pctCls(c.c30) + '">' + fmtPct(c.c30) + '</td>' +
+        '<td class="' + pctCls(c.c1y) + '">' + fmtPct(c.c1y) + '</td>' +
+        '<td>' + fmtBig(c.mcap) + '</td><td>' + fmtBig(c.vol) + '</td>' +
+        '<td>' + (c.partial ? '<span class="dim">' + c.score.toFixed(1) + '*</span>' : c.score.toFixed(1)) + '</td>' +
+        '<td class="signal">' + esc(signalOf(c)) + '</td>' +
+      '</tr>';
+    }).join('') || '<tr><td class="left dim" colspan="11">Keine Treffer.</td></tr>';
+
+    const missing = coins.filter(c => !c.ok);
+    $('missing-sum').textContent = 'Coins ohne Daten (' + missing.length + ')';
+    $('missing').innerHTML = missing.length
+      ? esc(missing.map(c => c.symbol + ' [' + c.id + ']').join(', ')) + '<br><span class="dim">Meist falsche oder umbenannte CoinGecko-ID, oder der Coin ist (noch) nicht gelistet. Mit * markierte Scores haben unvollständige 7d/30d-Werte.</span>'
+      : 'Alle Coins haben Daten.';
+  }
+
+  /* ===== Refresh ===== */
+  let busy = false, retryTimer = null;
+  async function load(manual) {
+    if (busy) return;
+    busy = true;
+    const st = $('status');
+    st.className = ''; st.textContent = '🔄 Hole LIVE-Daten…';
+    try {
+      const data = await fetchMarkets();
+      applyData(data);
+      lastGood = Date.now();
+      const okN = coins.filter(c => c.ok).length;
+      st.className = 'ok';
+      st.textContent = '✅ ' + okN + ' von ' + coins.length + ' Coins geladen · Stand ' + zTime(lastGood) + ' (Zürich) · Auto-Refresh alle ' + (CFG.REFRESH_MS / 60000) + ' Min.' + (fetchMarkets.lean ? ' · ohne 7-Tage-Kurve (Notfallmodus)' : '');
+      evaluateAll();
+      autoLogToday();
+    } catch (e) {
+      st.className = 'err';
+      st.textContent = '⚠️ ' + e.message + '. ' + (lastGood ? 'Zeige Daten von ' + zTime(lastGood) + '. ' : 'Noch keine Daten. ') + 'Prüfe Verbindung …';
+      diagnose().then(msg => {
+        st.textContent = '⚠️ ' + e.message + '. ' + msg + (lastGood ? ' (Angezeigt: Daten von ' + zTime(lastGood) + ')' : '');
+      });
+      if (!retryTimer) retryTimer = setTimeout(() => { retryTimer = null; load(false); }, 60000);
+    } finally {
+      busy = false;
+      renderTips(); renderTable(); renderLog();
+    }
+  }
+
+  /* ===== Events ===== */
+  function readSettings() {
+    const n = (id, d, min) => { const v = parseFloat($(id).value); return isFinite(v) && v >= min ? v : d; };
+    settings.cat = $('cat').value;
+    settings.minCap = n('minCap', defaults.minCap, 0);
+    settings.minVol = n('minVol', defaults.minVol, 0);
+    settings.notional = n('notional', defaults.notional, 1);
+    settings.autoLog = $('autoLog').checked;
+    settings.apiKey = $('apiKey').value.trim();
+    saveSettings();
+  }
+  ['cat', 'minCap', 'minVol', 'notional', 'autoLog', 'apiKey'].forEach(id => $(id).addEventListener('change', () => { readSettings(); renderTips(); }));
+  $('btn').addEventListener('click', () => load(true));
+  $('search').addEventListener('input', renderTable);
+
+  document.querySelectorAll('#table th button').forEach(b => b.addEventListener('click', () => {
+    const col = b.dataset.col;
+    sortState = { col, dir: sortState.col === col ? -sortState.dir : (col === 'name' || col === 'cat' ? 1 : -1) };
+    renderTable();
+  }));
+
+  $('tip-grid').addEventListener('click', ev => {
+    const btn = ev.target.closest('button[data-log]');
+    if (!btn) return;
+    const c = coins.find(x => x.symbol === btn.dataset.log);
+    if (!c || !c.ok) return;
+    if (log.some(e => e.rem > 0 && e.symbol === c.symbol) && !confirm(c.symbol + ' ist schon als offener Paper-Trade im Protokoll. Trotzdem nochmal eintragen?')) return;
+    log.unshift(newEntry(c, 'manuell'));
+    saveLog(); renderLog();
+    btn.textContent = '✅ Eingetragen';
+    btn.disabled = true;
+  });
+
+  $('log-table').addEventListener('click', ev => {
+    const btn = ev.target.closest('button[data-del]');
+    if (!btn) return;
+    log = log.filter(e => e.id !== btn.dataset.del);
+    saveLog(); renderLog();
+  });
+
+  $('export').addEventListener('click', () => {
+    const blob = new Blob([JSON.stringify(log, null, 2)], { type: 'application/json' });
+    const a = document.createElement('a');
+    a.href = URL.createObjectURL(blob);
+    a.download = 'meme-coin-paper-log-' + zDate(Date.now()) + '.json';
+    document.body.appendChild(a); a.click(); a.remove();
+    setTimeout(() => URL.revokeObjectURL(a.href), 1000);
+  });
+  $('importBtn').addEventListener('click', () => $('importFile').click());
+  $('importFile').addEventListener('change', ev => {
+    const f = ev.target.files[0];
+    if (!f) return;
+    const r = new FileReader();
+    r.onload = () => {
+      try {
+        const incoming = sanitizeLog(JSON.parse(r.result));
+        const ids = new Set(log.map(e => e.id));
+        const add = incoming.filter(e => !ids.has(e.id));
+        log = log.concat(add).sort((a, b) => b.t - a.t);
+        saveLog(); renderLog();
+        alert(add.length + ' Einträge importiert.');
+      } catch (e) { alert('Datei konnte nicht gelesen werden.'); }
+      ev.target.value = '';
+    };
+    r.readAsText(f);
+  });
+  $('clear').addEventListener('click', () => {
+    if (!log.length) return;
+    if (confirm('Wirklich das ganze Paper-Protokoll löschen? Tipp: vorher exportieren.')) { log = []; saveLog(); renderLog(); }
+  });
+
+  /* ===== Start ===== */
+  $('cat').value = settings.cat;
+  $('minCap').value = settings.minCap;
+  $('minVol').value = settings.minVol;
+  $('notional').value = settings.notional;
+  $('autoLog').checked = !!settings.autoLog;
+  $('apiKey').value = settings.apiKey || '';
+  renderLog();
+  load(false);
+  setInterval(() => load(false), CFG.REFRESH_MS);
+})();
+</script>
+</body>
+</html>
